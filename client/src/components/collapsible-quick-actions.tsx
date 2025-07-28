@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Edit3, Check, X } from "lucide-react";
 import type { InsertTransaction } from "@shared/schema";
 
 interface CollapsibleQuickActionsProps {
@@ -13,6 +14,8 @@ interface CollapsibleQuickActionsProps {
 
 export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActionsProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -48,7 +51,8 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
       amount: '20000', 
       category: 'food', 
       type: 'expense' as const,
-      description: 'Sarapan pagi' 
+      description: 'Sarapan pagi',
+      isEditable: true
     },
     { 
       id: 'coffee', 
@@ -57,7 +61,8 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
       amount: '15000', 
       category: 'food', 
       type: 'expense' as const,
-      description: 'Kopi sore' 
+      description: 'Kopi sore',
+      isEditable: true
     },
     { 
       id: 'ojek', 
@@ -66,7 +71,8 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
       amount: '12000', 
       category: 'transport', 
       type: 'expense' as const,
-      description: 'Ojek/Grab' 
+      description: 'Ojek/Grab',
+      isEditable: true
     },
     { 
       id: 'lunch', 
@@ -75,7 +81,8 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
       amount: '35000', 
       category: 'food', 
       type: 'expense' as const,
-      description: 'Makan siang' 
+      description: 'Makan siang',
+      isEditable: true
     },
     { 
       id: 'gas', 
@@ -84,7 +91,8 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
       amount: '50000', 
       category: 'transport', 
       type: 'expense' as const,
-      description: 'Isi bensin' 
+      description: 'Isi bensin',
+      isEditable: true
     },
     { 
       id: 'snack', 
@@ -93,7 +101,8 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
       amount: '10000', 
       category: 'food', 
       type: 'expense' as const,
-      description: 'Jajan' 
+      description: 'Jajan',
+      isEditable: true
     },
   ];
 
@@ -105,7 +114,8 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
       amount: '5000000', 
       category: 'salary', 
       type: 'income' as const,
-      description: 'Gaji bulanan' 
+      description: 'Gaji bulanan',
+      isEditable: true
     },
     { 
       id: 'freelance', 
@@ -114,7 +124,8 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
       amount: '1500000', 
       category: 'freelance', 
       type: 'income' as const,
-      description: 'Projek freelance' 
+      description: 'Projek freelance',
+      isEditable: true
     },
     { 
       id: 'bonus', 
@@ -123,20 +134,41 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
       amount: '500000', 
       category: 'bonus', 
       type: 'income' as const,
-      description: 'Bonus kerja' 
+      description: 'Bonus kerja',
+      isEditable: true
     },
   ];
 
   const allTemplates = [...expenseTemplates, ...incomeTemplates];
 
-  const handleQuickTransaction = (template: typeof allTemplates[0]) => {
+  const handleQuickTransaction = (template: typeof allTemplates[0], customAmount?: number) => {
+    const amount = customAmount ? customAmount.toString() : template.amount;
     quickTransactionMutation.mutate({
-      amount: template.amount,
+      amount: amount,
       type: template.type,
       category: template.category as "food" | "transport" | "shopping" | "entertainment" | "bills" | "other" | "salary" | "freelance" | "business" | "investment" | "bonus",
       description: template.description,
       date: new Date(),
     });
+  };
+
+  const handleEditStart = (templateId: string, currentAmount: string) => {
+    setEditingId(templateId);
+    setEditAmount(currentAmount);
+  };
+
+  const handleEditConfirm = (template: typeof allTemplates[0]) => {
+    const newAmount = parseInt(editAmount);
+    if (newAmount && newAmount > 0) {
+      handleQuickTransaction(template, newAmount);
+    }
+    setEditingId(null);
+    setEditAmount("");
+  };
+
+  const handleEditCancel = () => {
+    setEditingId(null);
+    setEditAmount("");
   };
 
   return (
@@ -169,17 +201,66 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
             </h6>
             <div className="grid grid-cols-2 gap-3">
               {expenseTemplates.map((template) => (
-                <Button
-                  key={template.id}
-                  variant="outline"
-                  className="p-4 h-auto flex flex-col items-center space-y-2 hover:bg-red-50 transition-colors border-gray-200 hover:border-red-300"
-                  onClick={() => handleQuickTransaction(template)}
-                  disabled={quickTransactionMutation.isPending}
-                >
-                  <div className="text-3xl">{template.emoji}</div>
-                  <div className="text-sm font-medium text-gray-800">{template.name}</div>
-                  <div className="text-xs text-red-600">-Rp {Number(template.amount).toLocaleString('id-ID')}</div>
-                </Button>
+                <div key={template.id} className="relative">
+                  {editingId === template.id ? (
+                    <div className="p-3 border border-blue-300 rounded-xl bg-blue-50">
+                      <div className="text-center mb-2">
+                        <div className="text-2xl mb-1">{template.emoji}</div>
+                        <div className="text-sm font-medium">{template.name}</div>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Input
+                          type="number"
+                          value={editAmount}
+                          onChange={(e) => setEditAmount(e.target.value)}
+                          className="h-8 text-sm"
+                          placeholder="Jumlah"
+                          autoFocus
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={() => handleEditConfirm(template)}
+                        >
+                          <Check className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={handleEditCancel}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="relative p-4 h-auto w-full flex flex-col items-center space-y-2 hover:bg-red-50 transition-colors border-gray-200 hover:border-red-300 group"
+                      onClick={() => handleQuickTransaction(template)}
+                      disabled={quickTransactionMutation.isPending}
+                    >
+                      {template.isEditable && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditStart(template.id, template.amount);
+                          }}
+                        >
+                          <Edit3 className="h-3 w-3" />
+                        </Button>
+                      )}
+                      <div className="text-3xl">{template.emoji}</div>
+                      <div className="text-sm font-medium text-gray-800">{template.name}</div>
+                      <div className="text-xs text-red-600">-Rp {Number(template.amount).toLocaleString('id-ID')}</div>
+                    </Button>
+                  )}
+                </div>
               ))}
             </div>
           </div>
@@ -191,35 +272,84 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
             </h6>
             <div className="grid grid-cols-1 gap-3">
               {incomeTemplates.map((template) => (
-                <Button
-                  key={template.id}
-                  variant="outline"
-                  className="p-4 h-auto flex items-center justify-between hover:bg-green-50 transition-colors border-gray-200 hover:border-green-300"
-                  onClick={() => handleQuickTransaction(template)}
-                  disabled={quickTransactionMutation.isPending}
-                >
-                  <div className="flex items-center space-x-3">
-                    <span className="text-3xl">{template.emoji}</span>
-                    <div className="text-left">
-                      <div className="text-sm font-medium text-gray-800">{template.name}</div>
-                      <div className="text-xs text-gray-500">{template.description}</div>
+                <div key={template.id}>
+                  {editingId === template.id ? (
+                    <div className="p-3 border border-green-300 rounded-xl bg-green-50">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-2xl">{template.emoji}</span>
+                          <span className="font-medium">{template.name}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Input
+                          type="number"
+                          value={editAmount}
+                          onChange={(e) => setEditAmount(e.target.value)}
+                          className="h-8 text-sm"
+                          placeholder="Jumlah"
+                          autoFocus
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={() => handleEditConfirm(template)}
+                        >
+                          <Check className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={handleEditCancel}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-sm font-bold text-green-600">
-                    +Rp {Number(template.amount).toLocaleString('id-ID')}
-                  </div>
-                </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="relative p-4 h-auto w-full flex items-center justify-between hover:bg-green-50 transition-colors border-gray-200 hover:border-green-300 group"
+                      onClick={() => handleQuickTransaction(template)}
+                      disabled={quickTransactionMutation.isPending}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <span className="text-3xl">{template.emoji}</span>
+                        <div className="text-left">
+                          <div className="text-sm font-medium text-gray-800">{template.name}</div>
+                          <div className="text-xs text-gray-500">{template.description}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="text-sm font-bold text-green-600">
+                          +Rp {Number(template.amount).toLocaleString('id-ID')}
+                        </div>
+                        {template.isEditable && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditStart(template.id, template.amount);
+                            }}
+                          >
+                            <Edit3 className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </Button>
+                  )}
+                </div>
               ))}
             </div>
           </div>
           
           <div className="mt-4 p-3 bg-blue-50 rounded-xl">
-            <div className="flex items-center space-x-2">
-              <span className="text-xl">💡</span>
-              <div className="text-sm text-blue-800">
-                <p className="font-medium">Tips:</p>
-                <p>Klik template untuk langsung menambahkan transaksi dengan jumlah yang sudah ditentukan</p>
-              </div>
+            <div className="text-xs text-blue-700 text-center">
+              💡 Klik tombol untuk langsung menambah transaksi, atau klik ikon edit untuk mengubah nominal terlebih dahulu.
             </div>
           </div>
         </CardContent>
