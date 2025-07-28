@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { ChevronDown, ChevronUp, Edit3, Check, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Edit3, Check, X, Calculator } from "lucide-react";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import type { InsertTransaction } from "@shared/schema";
 
 interface SmartQuickActionsProps {
@@ -34,6 +35,8 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState<string>("");
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<QuickActionTemplate | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -185,9 +188,26 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
     });
   };
 
-  const handleEditStart = (templateId: string, currentAmount: number) => {
-    setEditingId(templateId);
-    setEditAmount(currentAmount.toString());
+  const handleEditStart = (template: QuickActionTemplate) => {
+    setSelectedTemplate(template);
+    setEditAmount(template.amount.toString());
+    setShowEditDialog(true);
+  };
+
+  const handleDirectTransaction = () => {
+    if (selectedTemplate) {
+      handleQuickTransaction(selectedTemplate);
+    }
+    setShowEditDialog(false);
+    setSelectedTemplate(null);
+  };
+
+  const handleEditTransaction = () => {
+    if (selectedTemplate) {
+      setEditingId(selectedTemplate.id);
+      setEditAmount(selectedTemplate.amount.toString());
+    }
+    setShowEditDialog(false);
   };
 
   const handleEditConfirm = (template: QuickActionTemplate) => {
@@ -288,7 +308,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
                             className="absolute top-1 right-1 h-6 w-6 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-gray-100 rounded flex items-center justify-center"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleEditStart(template.id, template.amount);
+                              handleEditStart(template);
                             }}
                           >
                             <Edit3 className="h-3 w-3" />
@@ -374,7 +394,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
                               className="h-6 w-6 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-gray-100 rounded flex items-center justify-center"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleEditStart(template.id, template.amount);
+                                handleEditStart(template);
                               }}
                             >
                               <Edit3 className="h-3 w-3" />
@@ -396,6 +416,48 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
           </div>
         </CardContent>
       )}
+
+      {/* Alert Dialog untuk konfirmasi edit */}
+      <AlertDialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center space-x-2">
+              <span className="text-2xl">{selectedTemplate?.emoji}</span>
+              <span>Pilih Aksi untuk {selectedTemplate?.name}</span>
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Nominal saat ini: <span className="font-semibold text-blue-600">
+                Rp {selectedTemplate?.amount.toLocaleString('id-ID')}
+              </span>
+              <br />
+              Apa yang ingin Anda lakukan?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel asChild>
+              <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+                Batal
+              </Button>
+            </AlertDialogCancel>
+            <Button 
+              variant="default" 
+              onClick={handleDirectTransaction}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Check className="h-4 w-4 mr-2" />
+              Langsung Simpan
+            </Button>
+            <Button 
+              variant="secondary" 
+              onClick={handleEditTransaction}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Calculator className="h-4 w-4 mr-2" />
+              Edit Nominal Dulu
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
