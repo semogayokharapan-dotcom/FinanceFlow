@@ -1,10 +1,12 @@
 import { useState } from "react";
+import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
 import WeeklyReport from "@/components/weekly-report";
 import type { Transaction } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
 
 interface ReportsTabProps {
   userId: string;
@@ -21,21 +23,61 @@ export default function ReportsTab({ userId }: ReportsTabProps) {
     queryKey: ['/api/analytics/categories', userId],
   });
 
-  // Get today's date range for daily report
-  const today = new Date();
-  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
-
-  const { data: todayTransactions } = useQuery<Transaction[]>({
-    queryKey: ['/api/analytics/transactions', userId, 'range', startOfDay.toISOString(), endOfDay.toISOString()],
-    queryFn: () => 
-      fetch(`/api/analytics/transactions/${userId}/range?startDate=${startOfDay.toISOString()}&endDate=${endOfDay.toISOString()}`)
-        .then(res => res.json()),
+  // Get transactions for the last 7 days for daily report
+  const { data: weekTransactions } = useQuery<Transaction[]>({
+    queryKey: ['/api/analytics/transactions', userId, 'daily-week'],
+    queryFn: async () => {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 7);
+      
+      const response = await apiRequest("GET", `/api/analytics/transactions/${userId}/range?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`);
+      return response.json();
+    },
   });
 
-  const todayIncome = todayTransactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0) || 0;
-  const todayExpense = todayTransactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0) || 0;
-  const todayBalance = todayIncome - todayExpense;
+  // Process daily data for the last 7 days
+  const dailyData = React.useMemo(() => {
+    if (!weekTransactions) return [];
+    
+    const last7Days = [];
+    const today = new Date();
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      const dayTransactions = weekTransactions.filter((t: any) => 
+        t.date.split('T')[0] === dateStr
+      );
+      
+      const income = dayTransactions
+        .filter((t: any) => t.type === 'income')
+        .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
+      
+      const expense = dayTransactions
+        .filter((t: any) => t.type === 'expense')
+        .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
+      
+      last7Days.push({
+        date: dateStr,
+        displayDate: date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }),
+        income,
+        expense,
+        balance: income - expense,
+        isToday: i === 0
+      });
+    }
+    
+    return last7Days;
+  }, [weekTransactions]);
+
+  // Get today's data
+  const todayData = dailyData.find(d => d.isToday) || { income: 0, expense: 0, balance: 0 };
+  const todayIncome = todayData.income;
+  const todayExpense = todayData.expense;
+  const todayBalance = todayData.balance;
 
   const monthlyIncome = balance?.income || 0;
   const expenseRatio = monthlyIncome > 0 ? (todayExpense / monthlyIncome) * 100 : 0;

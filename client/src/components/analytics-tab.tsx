@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
+import * as React from 'react';
 import { formatCurrency } from '@/lib/format';
+import { apiRequest } from '@/lib/queryClient';
 
 interface AnalyticsTabProps {
   userId: string;
@@ -32,27 +34,104 @@ interface MonthlyData {
 export function AnalyticsTab({ userId }: AnalyticsTabProps) {
   const [viewType, setViewType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
-  // Mock data - replace with actual API calls
-  const dailyData: DailyData[] = [
-    { date: '2025-01-25', income: 500000, expense: 150000, balance: 350000 },
-    { date: '2025-01-26', income: 0, expense: 75000, balance: 275000 },
-    { date: '2025-01-27', income: 200000, expense: 100000, balance: 375000 },
-    { date: '2025-01-28', income: 0, expense: 50000, balance: 325000 },
-  ];
+  // Fetch daily analytics data
+  const { data: dailyTransactions } = useQuery({
+    queryKey: ['/api/analytics/transactions', userId, 'daily'],
+    queryFn: async () => {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 7); // Last 7 days
+      
+      const response = await apiRequest("GET", `/api/analytics/transactions/${userId}/range?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`);
+      return response.json();
+    },
+  });
 
-  const weeklyData: WeeklyData[] = [
-    { week: 'Minggu 1', income: 2500000, expense: 800000, balance: 1700000 },
-    { week: 'Minggu 2', income: 1500000, expense: 600000, balance: 2600000 },
-    { week: 'Minggu 3', income: 3000000, expense: 750000, balance: 4850000 },
-    { week: 'Minggu 4', income: 700000, expense: 375000, balance: 5175000 },
-  ];
+  // Fetch weekly analytics data  
+  const { data: weeklyAnalytics } = useQuery({
+    queryKey: ['/api/analytics/weekly', userId],
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/analytics/weekly/${userId}`);
+      return response.json();
+    },
+  });
 
-  const monthlyData: MonthlyData[] = [
-    { month: 'Oktober', income: 7500000, expense: 2800000, balance: 4700000 },
-    { month: 'November', income: 8200000, expense: 3100000, balance: 9800000 },
-    { month: 'Desember', income: 6800000, expense: 4200000, balance: 12400000 },
-    { month: 'Januari', income: 7700000, expense: 2525000, balance: 17575000 },
-  ];
+  // Process daily data
+  const dailyData: DailyData[] = React.useMemo(() => {
+    if (!dailyTransactions) return [];
+    
+    const last7Days = [];
+    const today = new Date();
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      const dayTransactions = dailyTransactions.filter((t: any) => 
+        t.date.split('T')[0] === dateStr
+      );
+      
+      const income = dayTransactions
+        .filter((t: any) => t.type === 'income')
+        .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
+      
+      const expense = dayTransactions
+        .filter((t: any) => t.type === 'expense')
+        .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
+      
+      last7Days.push({
+        date: date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }),
+        income,
+        expense,
+        balance: income - expense
+      });
+    }
+    
+    return last7Days;
+  }, [dailyTransactions]);
+
+  // Process weekly data
+  const weeklyData: WeeklyData[] = React.useMemo(() => {
+    if (!weeklyAnalytics) return [];
+    
+    return weeklyAnalytics.map((week: any, index: number) => ({
+      week: week.week || `Minggu ${index + 1}`,
+      income: week.income || 0,
+      expense: week.expense || 0,
+      balance: week.balance || 0
+    }));
+  }, [weeklyAnalytics]);
+
+  // Generate monthly data from available transactions
+  const monthlyData: MonthlyData[] = React.useMemo(() => {
+    if (!dailyTransactions) return [];
+    
+    const monthlyStats: Record<string, { income: number; expense: number }> = {};
+    
+    dailyTransactions.forEach((transaction: any) => {
+      const date = new Date(transaction.date);
+      const monthKey = date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+      
+      if (!monthlyStats[monthKey]) {
+        monthlyStats[monthKey] = { income: 0, expense: 0 };
+      }
+      
+      const amount = parseFloat(transaction.amount);
+      if (transaction.type === 'income') {
+        monthlyStats[monthKey].income += amount;
+      } else {
+        monthlyStats[monthKey].expense += amount;
+      }
+    });
+    
+    return Object.entries(monthlyStats).map(([month, stats]) => ({
+      month,
+      income: stats.income,
+      expense: stats.expense,
+      balance: stats.income - stats.expense
+    }));
+  }, [dailyTransactions]);
 
   const getCurrentData = () => {
     switch (viewType) {
