@@ -56,11 +56,14 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
       return response.json();
     },
     onSuccess: () => {
+      // Invalidate queries to refresh UI
       queryClient.invalidateQueries({ queryKey: ['/api/transactions', userId] });
       queryClient.invalidateQueries({ queryKey: ['/api/analytics/balance', userId] });
       queryClient.invalidateQueries({ queryKey: ['/api/analytics/categories', userId] });
       queryClient.invalidateQueries({ queryKey: ['/api/analytics/averages', userId] });
-      
+      queryClient.invalidateQueries({ queryKey: ['/api/analytics/transactions', userId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/analytics/weekly', userId] });
+
       toast({
         title: "✅ Transaksi Cepat Berhasil!",
         description: "Transaksi telah ditambahkan",
@@ -124,7 +127,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
     }
 
     const templates: QuickActionTemplate[] = [];
-    
+
     // Map of category to emoji and name
     const categoryInfo: Record<string, { emoji: string; name: string }> = {
       food: { emoji: '🍔', name: 'Makan' },
@@ -251,7 +254,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
           </div>
         </div>
       </CardHeader>
-      
+
       {isExpanded && (
         <CardContent className="pt-0">
           {/* Expense Templates */}
@@ -398,7 +401,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
               </div>
             </div>
           )}
-          
+
           <div className="mt-4 p-3 bg-blue-50 rounded-xl">
             <div className="text-xs text-blue-700 text-center">
               💡 Aksi cepat belajar dari kebiasaan transaksi Anda. Klik ikon edit (✏️) untuk melakukan transaksi atau mengubah nominal.
