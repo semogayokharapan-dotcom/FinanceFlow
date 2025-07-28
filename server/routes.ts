@@ -130,6 +130,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/analytics/weekly/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const weekCount = req.query.weeks ? parseInt(req.query.weeks as string) : 4;
+      
+      const weeklyStats = await storage.getWeeklyStats(userId, weekCount);
+      res.json(weeklyStats);
+    } catch (error) {
+      res.status(500).json({ message: "Gagal mengambil statistik mingguan" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -1,6 +1,6 @@
 import { users, transactions, type User, type InsertUser, type Transaction, type InsertTransaction } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, sum, and, gte, lte } from "drizzle-orm";
+import { eq, desc, sum, and, gte, lte, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -17,6 +17,7 @@ export interface IStorage {
   getUserBalance(userId: string): Promise<{ income: number; expense: number; balance: number }>;
   getUserTransactionsByDateRange(userId: string, startDate: Date, endDate: Date): Promise<Transaction[]>;
   getUserCategoryStats(userId: string): Promise<Array<{ category: string; total: number; count: number }>>;
+  getWeeklyStats(userId: string, weekCount: number): Promise<Array<{ week: string; income: number; expense: number; balance: number; startDate: Date; endDate: Date }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -108,6 +109,51 @@ export class DatabaseStorage implements IStorage {
       total: Number(r.total || 0),
       count: r.count,
     }));
+  }
+
+  async getWeeklyStats(userId: string, weekCount: number = 4): Promise<Array<{ week: string; income: number; expense: number; balance: number; startDate: Date; endDate: Date }>> {
+    const stats = [];
+    const now = new Date();
+    
+    for (let i = 0; i < weekCount; i++) {
+      // Calculate start and end of week (Monday to Sunday)
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1) - (i * 7));
+      weekStart.setHours(0, 0, 0, 0);
+      
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+
+      // Get transactions for this week
+      const weekTransactions = await this.getUserTransactionsByDateRange(userId, weekStart, weekEnd);
+      
+      const income = weekTransactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      
+      const expense = weekTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+      const balance = income - expense;
+      
+      // Format week label
+      const weekLabel = i === 0 ? 'Minggu Ini' : 
+                      i === 1 ? 'Minggu Lalu' : 
+                      `${i + 1} Minggu Lalu`;
+
+      stats.push({
+        week: weekLabel,
+        income,
+        expense,
+        balance,
+        startDate: weekStart,
+        endDate: weekEnd,
+      });
+    }
+
+    return stats;
   }
 }
 

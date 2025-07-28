@@ -8,7 +8,7 @@ interface BalanceCardProps {
 }
 
 export default function BalanceCard({ user }: BalanceCardProps) {
-  const { data: balance, isLoading } = useQuery({
+  const { data: balance, isLoading } = useQuery<{ balance: number; income: number; expense: number }>({
     queryKey: ['/api/analytics/balance', user.id],
   });
 

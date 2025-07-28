@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
+import WeeklyReport from "@/components/weekly-report";
 import type { Transaction } from "@shared/schema";
 
 interface ReportsTabProps {
@@ -12,7 +13,7 @@ interface ReportsTabProps {
 export default function ReportsTab({ userId }: ReportsTabProps) {
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
-  const { data: balance } = useQuery({
+  const { data: balance } = useQuery<{ balance: number; income: number; expense: number }>({
     queryKey: ['/api/analytics/balance', userId],
   });
 
@@ -121,14 +122,7 @@ export default function ReportsTab({ userId }: ReportsTabProps) {
 
           {/* Weekly Report */}
           {period === 'weekly' && (
-            <div className="space-y-4">
-              <h4 className="font-semibold text-gray-800">📊 Ringkasan Mingguan</h4>
-              <div className="text-center py-8 text-gray-500">
-                <div className="text-4xl mb-2">🚧</div>
-                <p>Fitur laporan mingguan</p>
-                <p className="text-sm">Akan segera tersedia</p>
-              </div>
-            </div>
+            <WeeklyReport userId={userId} />
           )}
 
           {/* Monthly Report */}

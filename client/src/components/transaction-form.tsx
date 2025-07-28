@@ -65,7 +65,7 @@ export default function TransactionForm({ userId }: TransactionFormProps) {
     addTransactionMutation.mutate({
       amount,
       type,
-      category,
+      category: category as "food" | "transport" | "shopping" | "entertainment" | "bills" | "other",
       description: description || undefined,
       date: new Date(),
     });

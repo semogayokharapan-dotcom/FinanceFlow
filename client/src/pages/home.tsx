@@ -6,7 +6,7 @@ import TransactionForm from "@/components/transaction-form";
 import BalanceCard from "@/components/balance-card";
 import RecentTransactions from "@/components/recent-transactions";
 import CategoryDistribution from "@/components/category-distribution";
-import QuickActions from "@/components/quick-actions";
+import CollapsibleQuickActions from "@/components/collapsible-quick-actions";
 import ReportsTab from "@/components/reports-tab";
 import TemplatesTab from "@/components/templates-tab";
 import { login, getStoredPrivateKey, getStoredUserData, clearStoredPrivateKey, clearUserData } from "@/lib/auth";
@@ -149,10 +149,10 @@ export default function Home() {
       <div className="max-w-md mx-auto px-4 py-4 space-y-4">
         {activeTab === 'dashboard' && (
           <>
+            <CollapsibleQuickActions userId={currentUser.id} />
             <TransactionForm userId={currentUser.id} />
             <RecentTransactions userId={currentUser.id} />
             <CategoryDistribution userId={currentUser.id} />
-            <QuickActions userId={currentUser.id} />
           </>
         )}
 
