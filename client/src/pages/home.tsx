@@ -6,9 +6,9 @@ import TransactionForm from "@/components/transaction-form";
 import BalanceCard from "@/components/balance-card";
 import RecentTransactions from "@/components/recent-transactions";
 import CategoryDistribution from "@/components/category-distribution";
-import CollapsibleQuickActions from "@/components/collapsible-quick-actions";
+import SmartQuickActions from "@/components/smart-quick-actions";
 import ReportsTab from "@/components/reports-tab";
-import TemplatesTab from "@/components/templates-tab";
+import { AnalyticsTab } from "@/components/analytics-tab";
 import { login, getStoredPrivateKey, getStoredUserData, clearStoredPrivateKey, clearUserData } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import type { AuthUser } from "@/lib/auth";
@@ -16,7 +16,7 @@ import type { AuthUser } from "@/lib/auth";
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'reports' | 'templates'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'reports' | 'analytics'>('dashboard');
   const [showQuickInput, setShowQuickInput] = useState(false);
   const { toast } = useToast();
 
@@ -135,11 +135,11 @@ export default function Home() {
               📅 Laporan
             </Button>
             <Button
-              variant={activeTab === 'templates' ? 'default' : 'ghost'}
+              variant={activeTab === 'analytics' ? 'default' : 'ghost'}
               className="flex-1 py-3 px-4 text-sm font-medium"
-              onClick={() => setActiveTab('templates')}
+              onClick={() => setActiveTab('analytics')}
             >
-              ⚡ Template
+              📊 Grafik
             </Button>
           </div>
         </div>
@@ -149,7 +149,7 @@ export default function Home() {
       <div className="max-w-md mx-auto px-4 py-4 space-y-4">
         {activeTab === 'dashboard' && (
           <>
-            <CollapsibleQuickActions userId={currentUser.id} />
+            <SmartQuickActions userId={currentUser.id} />
             <TransactionForm userId={currentUser.id} />
             <RecentTransactions userId={currentUser.id} />
             <CategoryDistribution userId={currentUser.id} />
@@ -160,11 +160,8 @@ export default function Home() {
           <ReportsTab userId={currentUser.id} />
         )}
 
-        {activeTab === 'templates' && (
-          <TemplatesTab 
-            userId={currentUser.id} 
-            onSwitchTab={() => setActiveTab('dashboard')}
-          />
+        {activeTab === 'analytics' && (
+          <AnalyticsTab userId={currentUser.id} />
         )}
       </div>
 

@@ -93,6 +93,11 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(transactions.date));
   }
 
+  async getTransactionsByDateRange(userId: string, startDate: Date, endDate: Date): Promise<Transaction[]> {
+    // Alias for getUserTransactionsByDateRange for backward compatibility
+    return this.getUserTransactionsByDateRange(userId, startDate, endDate);
+  }
+
   async getUserCategoryStats(userId: string): Promise<Array<{ category: string; total: number; count: number }>> {
     const result = await db
       .select({

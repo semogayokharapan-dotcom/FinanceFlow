@@ -142,6 +142,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Smart quick actions - get average amounts by category
+  app.get('/api/analytics/averages/:userId', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const transactions = await storage.getTransactionsByDateRange(userId, thirtyDaysAgo, new Date());
+      
+      // Calculate averages by category and type
+      const categoryData = transactions.reduce((acc: Record<string, { total: number; count: number; type: string; category: string }>, transaction: any) => {
+        const key = `${transaction.type}_${transaction.category}`;
+        if (!acc[key]) {
+          acc[key] = { total: 0, count: 0, type: transaction.type, category: transaction.category };
+        }
+        acc[key].total += parseFloat(transaction.amount);
+        acc[key].count += 1;
+        return acc;
+      }, {});
+      
+      // Calculate averages
+      const averages = Object.values(categoryData).map((data: any) => ({
+        type: data.type,
+        category: data.category,
+        averageAmount: Math.round(data.total / data.count),
+        transactionCount: data.count
+      }));
+      
+      res.json(averages);
+    } catch (error) {
+      console.error('Error fetching category averages:', error);
+      res.status(500).json({ message: 'Gagal mengambil data rata-rata kategori' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
