@@ -256,15 +256,10 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
                       </div>
                     </div>
                   ) : (
-                    <Button
-                      variant="outline"
-                      className="relative p-4 h-auto w-full flex flex-col items-center space-y-2 hover:bg-red-50 transition-colors border-gray-200 hover:border-red-300 group"
-                      onClick={() => handleQuickTransaction(template)}
-                      disabled={quickTransactionMutation.isPending}
-                    >
+                    <div className="relative p-4 h-auto w-full flex flex-col items-center space-y-2 border border-gray-200 rounded-lg hover:bg-red-50 transition-colors hover:border-red-300 group cursor-pointer">
                       {template.isEditable && (
                         <span
-                          className="absolute top-1 right-1 h-6 w-6 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-gray-100 rounded flex items-center justify-center"
+                          className="absolute top-1 right-1 h-6 w-6 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-gray-100 rounded flex items-center justify-center z-10"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleEditStart(template);
@@ -276,7 +271,7 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
                       <div className="text-3xl">{template.emoji}</div>
                       <div className="text-sm font-medium text-gray-800">{template.name}</div>
                       <div className="text-xs text-red-600">-Rp {Number(template.amount).toLocaleString('id-ID')}</div>
-                    </Button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -327,12 +322,7 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
                       </div>
                     </div>
                   ) : (
-                    <Button
-                      variant="outline"
-                      className="relative p-4 h-auto w-full flex items-center justify-between hover:bg-green-50 transition-colors border-gray-200 hover:border-green-300 group"
-                      onClick={() => handleQuickTransaction(template)}
-                      disabled={quickTransactionMutation.isPending}
-                    >
+                    <div className="relative p-4 h-auto w-full flex items-center justify-between border border-gray-200 rounded-lg hover:bg-green-50 transition-colors hover:border-green-300 group cursor-pointer">
                       <div className="flex items-center space-x-3">
                         <span className="text-3xl">{template.emoji}</span>
                         <div className="text-left">
@@ -346,7 +336,7 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
                         </div>
                         {template.isEditable && (
                           <span
-                            className="h-6 w-6 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-gray-100 rounded flex items-center justify-center"
+                            className="h-6 w-6 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-gray-100 rounded flex items-center justify-center z-10"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleEditStart(template);
@@ -356,7 +346,7 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
                           </span>
                         )}
                       </div>
-                    </Button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -365,7 +355,7 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
           
           <div className="mt-4 p-3 bg-blue-50 rounded-xl">
             <div className="text-xs text-blue-700 text-center">
-              💡 Klik tombol untuk langsung menambah transaksi, atau klik ikon edit untuk mengubah nominal terlebih dahulu.
+              💡 Klik ikon edit (✏️) untuk melakukan transaksi atau mengubah nominal terlebih dahulu.
             </div>
           </div>
         </CardContent>
