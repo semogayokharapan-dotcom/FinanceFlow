@@ -29,16 +29,13 @@ export default function RecentTransactions({ userId }: RecentTransactionsProps) 
       await apiRequest("DELETE", `/api/transactions/${userId}/${transactionId}`);
     },
     onSuccess: () => {
-      // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ['/api/transactions', userId] });
       queryClient.invalidateQueries({ queryKey: ['/api/analytics/balance', userId] });
       queryClient.invalidateQueries({ queryKey: ['/api/analytics/categories', userId] });
-      queryClient.invalidateQueries({ queryKey: ['/api/analytics/transactions', userId] });
-      queryClient.invalidateQueries({ queryKey: ['/api/analytics/weekly', userId] });
-
+      
       setDeleteDialogOpen(false);
       setTransactionToDelete(null);
-
+      
       toast({
         title: "✅ Berhasil!",
         description: "Transaksi berhasil dihapus",

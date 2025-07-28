@@ -31,12 +31,12 @@ export default function TransactionForm({ userId }: TransactionFormProps) {
       queryClient.invalidateQueries({ queryKey: ['/api/transactions', userId] });
       queryClient.invalidateQueries({ queryKey: ['/api/analytics/balance', userId] });
       queryClient.invalidateQueries({ queryKey: ['/api/analytics/categories', userId] });
-
+      
       toast({
         title: "✅ Berhasil!",
         description: "Transaksi berhasil ditambahkan",
       });
-
+      
       // Reset form
       setAmount('');
       setCategory('');
