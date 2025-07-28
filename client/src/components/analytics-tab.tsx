@@ -1,8 +1,7 @@
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
-import * as React from 'react';
 import { formatCurrency } from '@/lib/format';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -58,7 +57,7 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
 
   // Process daily data
   const dailyData: DailyData[] = React.useMemo(() => {
-    if (!dailyTransactions) return [];
+    if (!dailyTransactions || !Array.isArray(dailyTransactions)) return [];
     
     const last7Days = [];
     const today = new Date();
@@ -69,16 +68,16 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
       const dateStr = date.toISOString().split('T')[0];
       
       const dayTransactions = dailyTransactions.filter((t: any) => 
-        t.date.split('T')[0] === dateStr
+        t.date && t.date.split('T')[0] === dateStr
       );
       
       const income = dayTransactions
         .filter((t: any) => t.type === 'income')
-        .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
+        .reduce((sum: number, t: any) => sum + (parseFloat(t.amount) || 0), 0);
       
       const expense = dayTransactions
         .filter((t: any) => t.type === 'expense')
-        .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
+        .reduce((sum: number, t: any) => sum + (parseFloat(t.amount) || 0), 0);
       
       last7Days.push({
         date: date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }),
@@ -93,7 +92,7 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
 
   // Process weekly data
   const weeklyData: WeeklyData[] = React.useMemo(() => {
-    if (!weeklyAnalytics) return [];
+    if (!weeklyAnalytics || !Array.isArray(weeklyAnalytics)) return [];
     
     return weeklyAnalytics.map((week: any, index: number) => ({
       week: week.week || `Minggu ${index + 1}`,
@@ -105,11 +104,13 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
 
   // Generate monthly data from available transactions
   const monthlyData: MonthlyData[] = React.useMemo(() => {
-    if (!dailyTransactions) return [];
+    if (!dailyTransactions || !Array.isArray(dailyTransactions)) return [];
     
     const monthlyStats: Record<string, { income: number; expense: number }> = {};
     
     dailyTransactions.forEach((transaction: any) => {
+      if (!transaction.date) return;
+      
       const date = new Date(transaction.date);
       const monthKey = date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
       
@@ -117,7 +118,7 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
         monthlyStats[monthKey] = { income: 0, expense: 0 };
       }
       
-      const amount = parseFloat(transaction.amount);
+      const amount = parseFloat(transaction.amount) || 0;
       if (transaction.type === 'income') {
         monthlyStats[monthKey].income += amount;
       } else {
@@ -143,8 +144,10 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
   };
 
   const getMaxValue = (data: any[]) => {
-    const values = data.flatMap(d => [d.income, d.expense]);
-    return Math.max(...values);
+    if (!data || data.length === 0) return 100;
+    const values = data.flatMap(d => [d.income || 0, d.expense || 0]);
+    const maxVal = Math.max(...values);
+    return maxVal > 0 ? maxVal : 100;
   };
 
   const currentData = getCurrentData();
@@ -256,7 +259,7 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
               <div className="text-2xl mb-1">📈</div>
               <div className="text-xs text-gray-600 mb-1">Total Pemasukan</div>
               <div className="font-bold text-green-600">
-                {formatCurrency(currentData.reduce((sum, item) => sum + item.income, 0))}
+                {formatCurrency(currentData.length > 0 ? currentData.reduce((sum, item) => sum + (item.income || 0), 0) : 0)}
               </div>
             </div>
           </CardContent>
@@ -268,7 +271,7 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
               <div className="text-2xl mb-1">📉</div>
               <div className="text-xs text-gray-600 mb-1">Total Pengeluaran</div>
               <div className="font-bold text-red-600">
-                {formatCurrency(currentData.reduce((sum, item) => sum + item.expense, 0))}
+                {formatCurrency(currentData.length > 0 ? currentData.reduce((sum, item) => sum + (item.expense || 0), 0) : 0)}
               </div>
             </div>
           </CardContent>
@@ -285,41 +288,51 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
             {viewType === 'daily' && (
               <>
                 <div className="text-sm text-gray-600">
-                  • Rata-rata pengeluaran harian: <span className="font-medium">{formatCurrency(currentData.reduce((sum, item) => sum + item.expense, 0) / currentData.length)}</span>
-                </div>
-                <div className="text-sm text-gray-600">
-                  • Hari dengan pengeluaran tertinggi: <span className="font-medium">
-                    {(currentData as DailyData[]).reduce((max, item) => item.expense > max.expense ? item : max).date}
+                  • Rata-rata pengeluaran harian: <span className="font-medium">
+                    {formatCurrency(currentData.length > 0 ? currentData.reduce((sum, item) => sum + (item.expense || 0), 0) / currentData.length : 0)}
                   </span>
                 </div>
+                {currentData.length > 0 && (
+                  <div className="text-sm text-gray-600">
+                    • Hari dengan pengeluaran tertinggi: <span className="font-medium">
+                      {(currentData as DailyData[]).reduce((max, item) => (item.expense || 0) > (max.expense || 0) ? item : max).date}
+                    </span>
+                  </div>
+                )}
               </>
             )}
             {viewType === 'weekly' && (
               <>
                 <div className="text-sm text-gray-600">
                   • Rata-rata surplus mingguan: <span className="font-medium text-green-600">
-                    {formatCurrency((currentData.reduce((sum, item) => sum + item.income, 0) - currentData.reduce((sum, item) => sum + item.expense, 0)) / currentData.length)}
+                    {currentData.length > 0 ? formatCurrency((currentData.reduce((sum, item) => sum + (item.income || 0), 0) - currentData.reduce((sum, item) => sum + (item.expense || 0), 0)) / currentData.length) : formatCurrency(0)}
                   </span>
                 </div>
-                <div className="text-sm text-gray-600">
-                  • Minggu terbaik: <span className="font-medium">
-                    {(currentData as WeeklyData[]).reduce((max, item) => (item.income - item.expense) > (max.income - max.expense) ? item : max).week}
-                  </span>
-                </div>
+                {currentData.length > 0 && (
+                  <div className="text-sm text-gray-600">
+                    • Minggu terbaik: <span className="font-medium">
+                      {(currentData as WeeklyData[]).reduce((max, item) => ((item.income || 0) - (item.expense || 0)) > ((max.income || 0) - (max.expense || 0)) ? item : max).week}
+                    </span>
+                  </div>
+                )}
               </>
             )}
             {viewType === 'monthly' && (
               <>
-                <div className="text-sm text-gray-600">
-                  • Pertumbuhan saldo: <span className="font-medium text-green-600">
-                    +{formatCurrency(currentData[currentData.length - 1].balance - currentData[0].balance)} dalam 4 bulan
-                  </span>
-                </div>
-                <div className="text-sm text-gray-600">
-                  • Bulan dengan surplus tertinggi: <span className="font-medium">
-                    {(currentData as MonthlyData[]).reduce((max, item) => (item.income - item.expense) > (max.income - max.expense) ? item : max).month}
-                  </span>
-                </div>
+                {currentData.length >= 2 && (
+                  <>
+                    <div className="text-sm text-gray-600">
+                      • Pertumbuhan saldo: <span className="font-medium text-green-600">
+                        +{formatCurrency((currentData[currentData.length - 1]?.balance || 0) - (currentData[0]?.balance || 0))} dalam {currentData.length} bulan
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      • Bulan dengan surplus tertinggi: <span className="font-medium">
+                        {(currentData as MonthlyData[]).reduce((max, item) => ((item.income || 0) - (item.expense || 0)) > ((max.income || 0) - (max.expense || 0)) ? item : max).month}
+                      </span>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
