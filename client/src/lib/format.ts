@@ -30,24 +30,38 @@ export function formatDate(date: Date): string {
 
 export function getCategoryEmoji(category: string): string {
   const emojis: Record<string, string> = {
+    // Expense categories
     food: '🍔',
     transport: '🚗',
     shopping: '🛍️',
     entertainment: '🎬',
     bills: '📱',
     other: '📦',
+    // Income categories
+    salary: '💼',
+    freelance: '💻',
+    business: '🏢',
+    investment: '📈',
+    bonus: '🎁',
   };
   return emojis[category] || '📦';
 }
 
 export function getCategoryName(category: string): string {
   const names: Record<string, string> = {
+    // Expense categories
     food: 'Makan',
     transport: 'Transport',
     shopping: 'Belanja',
     entertainment: 'Hiburan',
     bills: 'Tagihan',
     other: 'Lain-lain',
+    // Income categories
+    salary: 'Gaji',
+    freelance: 'Freelance',
+    business: 'Bisnis',
+    investment: 'Investasi',
+    bonus: 'Bonus',
   };
   return names[category] || 'Lain-lain';
 }

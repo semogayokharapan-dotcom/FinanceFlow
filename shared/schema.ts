@@ -17,7 +17,7 @@ export const transactions = pgTable("transactions", {
   userId: varchar("user_id").references(() => users.id).notNull(),
   amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
   type: varchar("type", { enum: ["income", "expense"] }).notNull(),
-  category: varchar("category", { enum: ["food", "transport", "shopping", "entertainment", "bills", "other"] }).notNull(),
+  category: varchar("category", { enum: ["food", "transport", "shopping", "entertainment", "bills", "other", "salary", "freelance", "business", "investment", "bonus"] }).notNull(),
   description: text("description"),
   date: timestamp("date").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -43,6 +43,8 @@ export const insertTransactionSchema = createInsertSchema(transactions).omit({
   id: true,
   userId: true,
   createdAt: true,
+}).extend({
+  date: z.coerce.date(),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

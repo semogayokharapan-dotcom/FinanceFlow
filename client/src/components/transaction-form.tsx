@@ -65,7 +65,7 @@ export default function TransactionForm({ userId }: TransactionFormProps) {
     addTransactionMutation.mutate({
       amount,
       type,
-      category: category as "food" | "transport" | "shopping" | "entertainment" | "bills" | "other",
+      category: category as "food" | "transport" | "shopping" | "entertainment" | "bills" | "other" | "salary" | "freelance" | "business" | "investment" | "bonus",
       description: description || undefined,
       date: new Date(),
     });
@@ -92,7 +92,10 @@ export default function TransactionForm({ userId }: TransactionFormProps) {
             </div>
             <div>
               <Label htmlFor="transactionType">📊 Tipe</Label>
-              <Select value={type} onValueChange={(value) => setType(value as 'income' | 'expense')}>
+              <Select value={type} onValueChange={(value) => {
+                setType(value as 'income' | 'expense');
+                setCategory(''); // Reset category when type changes
+              }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -110,12 +113,25 @@ export default function TransactionForm({ userId }: TransactionFormProps) {
                 <SelectValue placeholder="Pilih kategori" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="food">🍔 Makan</SelectItem>
-                <SelectItem value="transport">🚗 Transport</SelectItem>
-                <SelectItem value="shopping">🛍️ Belanja</SelectItem>
-                <SelectItem value="entertainment">🎬 Hiburan</SelectItem>
-                <SelectItem value="bills">📱 Tagihan</SelectItem>
-                <SelectItem value="other">📦 Lain-lain</SelectItem>
+                {type === 'expense' ? (
+                  <>
+                    <SelectItem value="food">🍔 Makan</SelectItem>
+                    <SelectItem value="transport">🚗 Transport</SelectItem>
+                    <SelectItem value="shopping">🛍️ Belanja</SelectItem>
+                    <SelectItem value="entertainment">🎬 Hiburan</SelectItem>
+                    <SelectItem value="bills">📱 Tagihan</SelectItem>
+                    <SelectItem value="other">📦 Lain-lain</SelectItem>
+                  </>
+                ) : (
+                  <>
+                    <SelectItem value="salary">💼 Gaji</SelectItem>
+                    <SelectItem value="freelance">💻 Freelance</SelectItem>
+                    <SelectItem value="business">🏢 Bisnis</SelectItem>
+                    <SelectItem value="investment">📈 Investasi</SelectItem>
+                    <SelectItem value="bonus">🎁 Bonus</SelectItem>
+                    <SelectItem value="other">📦 Lain-lain</SelectItem>
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>
