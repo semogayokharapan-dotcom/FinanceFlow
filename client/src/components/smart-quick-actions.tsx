@@ -279,7 +279,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
                     ) : (
                       <Button
                         variant="outline"
-                        className="relative p-4 h-auto w-full flex flex-col items-center space-y-2 hover:bg-red-50 transition-colors border-gray-200 hover:border-red-300"
+                        className="relative p-4 h-auto w-full flex flex-col items-center space-y-2 hover:bg-red-50 transition-colors border-gray-200 hover:border-red-300 group"
                         onClick={() => handleQuickTransaction(template)}
                         disabled={quickTransactionMutation.isPending}
                       >
