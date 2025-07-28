@@ -243,17 +243,15 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
                       disabled={quickTransactionMutation.isPending}
                     >
                       {template.isEditable && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        <div
+                          className="absolute top-1 right-1 h-6 w-6 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-gray-100 rounded flex items-center justify-center"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleEditStart(template.id, template.amount);
                           }}
                         >
                           <Edit3 className="h-3 w-3" />
-                        </Button>
+                        </div>
                       )}
                       <div className="text-3xl">{template.emoji}</div>
                       <div className="text-sm font-medium text-gray-800">{template.name}</div>
@@ -327,17 +325,15 @@ export default function CollapsibleQuickActions({ userId }: CollapsibleQuickActi
                           +Rp {Number(template.amount).toLocaleString('id-ID')}
                         </div>
                         {template.isEditable && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          <div
+                            className="h-6 w-6 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-gray-100 rounded flex items-center justify-center"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleEditStart(template.id, template.amount);
                             }}
                           >
                             <Edit3 className="h-3 w-3" />
-                          </Button>
+                          </div>
                         )}
                       </div>
                     </Button>

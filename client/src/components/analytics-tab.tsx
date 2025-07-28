@@ -40,7 +40,7 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 7); // Last 7 days
-      
+
       const response = await apiRequest("GET", `/api/analytics/transactions/${userId}/range?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`);
       return response.json();
     },
@@ -58,27 +58,27 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
   // Process daily data
   const dailyData: DailyData[] = React.useMemo(() => {
     if (!dailyTransactions || !Array.isArray(dailyTransactions)) return [];
-    
+
     const last7Days = [];
     const today = new Date();
-    
+
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
-      
+
       const dayTransactions = dailyTransactions.filter((t: any) => 
         t.date && t.date.split('T')[0] === dateStr
       );
-      
+
       const income = dayTransactions
         .filter((t: any) => t.type === 'income')
         .reduce((sum: number, t: any) => sum + (parseFloat(t.amount) || 0), 0);
-      
+
       const expense = dayTransactions
         .filter((t: any) => t.type === 'expense')
         .reduce((sum: number, t: any) => sum + (parseFloat(t.amount) || 0), 0);
-      
+
       last7Days.push({
         date: date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }),
         income,
@@ -86,14 +86,14 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
         balance: income - expense
       });
     }
-    
+
     return last7Days;
   }, [dailyTransactions]);
 
   // Process weekly data
   const weeklyData: WeeklyData[] = React.useMemo(() => {
     if (!weeklyAnalytics || !Array.isArray(weeklyAnalytics)) return [];
-    
+
     return weeklyAnalytics.map((week: any, index: number) => ({
       week: week.week || `Minggu ${index + 1}`,
       income: week.income || 0,
@@ -105,19 +105,19 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
   // Generate monthly data from available transactions
   const monthlyData: MonthlyData[] = React.useMemo(() => {
     if (!dailyTransactions || !Array.isArray(dailyTransactions)) return [];
-    
+
     const monthlyStats: Record<string, { income: number; expense: number }> = {};
-    
+
     dailyTransactions.forEach((transaction: any) => {
       if (!transaction.date) return;
-      
+
       const date = new Date(transaction.date);
       const monthKey = date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
-      
+
       if (!monthlyStats[monthKey]) {
         monthlyStats[monthKey] = { income: 0, expense: 0 };
       }
-      
+
       const amount = parseFloat(transaction.amount) || 0;
       if (transaction.type === 'income') {
         monthlyStats[monthKey].income += amount;
@@ -125,7 +125,7 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
         monthlyStats[monthKey].expense += amount;
       }
     });
-    
+
     return Object.entries(monthlyStats).map(([month, stats]) => ({
       month,
       income: stats.income,
@@ -207,7 +207,7 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
               const period = (item as any).date || (item as any).week || (item as any).month;
               const incomeWidth = (item.income / maxValue) * 100;
               const expenseWidth = (item.expense / maxValue) * 100;
-              
+
               return (
                 <div key={index} className="space-y-2">
                   <div className="flex justify-between text-sm font-medium">
@@ -216,7 +216,7 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
                       {formatCurrency(item.balance)}
                     </span>
                   </div>
-                  
+
                   {/* Income Bar */}
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs">
@@ -230,7 +230,7 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
                       />
                     </div>
                   </div>
-                  
+
                   {/* Expense Bar */}
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs">
@@ -264,7 +264,7 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="text-center">
