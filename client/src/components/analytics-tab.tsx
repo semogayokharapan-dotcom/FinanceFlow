@@ -146,6 +146,7 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
   const getMaxValue = (data: any[]) => {
     if (!data || data.length === 0) return 100;
     const values = data.flatMap(d => [d.income || 0, d.expense || 0]);
+    if (values.length === 0) return 100;
     const maxVal = Math.max(...values);
     return maxVal > 0 ? maxVal : 100;
   };
@@ -259,7 +260,7 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
               <div className="text-2xl mb-1">📈</div>
               <div className="text-xs text-gray-600 mb-1">Total Pemasukan</div>
               <div className="font-bold text-green-600">
-                {formatCurrency(currentData.length > 0 ? currentData.reduce((sum, item) => sum + (item.income || 0), 0) : 0)}
+                {formatCurrency(currentData && currentData.length > 0 ? currentData.reduce((sum, item) => sum + (item.income || 0), 0) : 0)}
               </div>
             </div>
           </CardContent>
@@ -271,7 +272,7 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
               <div className="text-2xl mb-1">📉</div>
               <div className="text-xs text-gray-600 mb-1">Total Pengeluaran</div>
               <div className="font-bold text-red-600">
-                {formatCurrency(currentData.length > 0 ? currentData.reduce((sum, item) => sum + (item.expense || 0), 0) : 0)}
+                {formatCurrency(currentData && currentData.length > 0 ? currentData.reduce((sum, item) => sum + (item.expense || 0), 0) : 0)}
               </div>
             </div>
           </CardContent>
@@ -289,7 +290,7 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
               <>
                 <div className="text-sm text-gray-600">
                   • Rata-rata pengeluaran harian: <span className="font-medium">
-                    {formatCurrency(currentData.length > 0 ? currentData.reduce((sum, item) => sum + (item.expense || 0), 0) / currentData.length : 0)}
+                    {formatCurrency(currentData && currentData.length > 0 ? currentData.reduce((sum, item) => sum + (item.expense || 0), 0) / currentData.length : 0)}
                   </span>
                 </div>
                 {currentData.length > 0 && (
@@ -305,7 +306,7 @@ export function AnalyticsTab({ userId }: AnalyticsTabProps) {
               <>
                 <div className="text-sm text-gray-600">
                   • Rata-rata surplus mingguan: <span className="font-medium text-green-600">
-                    {currentData.length > 0 ? formatCurrency((currentData.reduce((sum, item) => sum + (item.income || 0), 0) - currentData.reduce((sum, item) => sum + (item.expense || 0), 0)) / currentData.length) : formatCurrency(0)}
+                    {currentData && currentData.length > 0 ? formatCurrency((currentData.reduce((sum, item) => sum + (item.income || 0), 0) - currentData.reduce((sum, item) => sum + (item.expense || 0), 0)) / currentData.length) : formatCurrency(0)}
                   </span>
                 </div>
                 {currentData.length > 0 && (

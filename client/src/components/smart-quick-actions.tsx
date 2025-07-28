@@ -284,7 +284,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
                         disabled={quickTransactionMutation.isPending}
                       >
                         {template.isEditable && (
-                          <div
+                          <span
                             className="absolute top-1 right-1 h-6 w-6 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-gray-100 rounded flex items-center justify-center"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -292,7 +292,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
                             }}
                           >
                             <Edit3 className="h-3 w-3" />
-                          </div>
+                          </span>
                         )}
                         <div className="text-3xl">{template.emoji}</div>
                         <div className="text-sm font-medium text-gray-800">{template.name}</div>
@@ -370,7 +370,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
                             +Rp {template.amount.toLocaleString('id-ID')}
                           </div>
                           {template.isEditable && (
-                            <div
+                            <span
                               className="h-6 w-6 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-gray-100 rounded flex items-center justify-center"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -378,7 +378,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
                               }}
                             >
                               <Edit3 className="h-3 w-3" />
-                            </div>
+                            </span>
                           )}
                         </div>
                       </Button>
