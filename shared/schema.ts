@@ -8,6 +8,7 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   fullName: text("full_name").notNull(),
   privateKey: text("private_key").notNull().unique(),
+  weyId: varchar("wey_id", { length: 8 }).notNull().unique(),
   monthlyTarget: decimal("monthly_target", { precision: 15, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -23,14 +24,59 @@ export const transactions = pgTable("transactions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const contacts = pgTable("contacts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  contactWeyId: varchar("contact_wey_id").references(() => users.weyId).notNull(),
+  contactName: text("contact_name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const messages = pgTable("messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fromUserId: varchar("from_user_id").references(() => users.id).notNull(),
+  toWeyId: varchar("to_wey_id").references(() => users.weyId).notNull(),
+  content: text("content").notNull(),
+  messageType: varchar("message_type", { enum: ["text", "ping"] }).notNull().default("text"),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const usersRelations = relations(users, ({ many }) => ({
   transactions: many(transactions),
+  contacts: many(contacts),
+  sentMessages: many(messages, { relationName: "sender" }),
+  receivedMessages: many(messages, { relationName: "receiver" }),
 }));
 
 export const transactionsRelations = relations(transactions, ({ one }) => ({
   user: one(users, {
     fields: [transactions.userId],
     references: [users.id],
+  }),
+}));
+
+export const contactsRelations = relations(contacts, ({ one }) => ({
+  user: one(users, {
+    fields: [contacts.userId],
+    references: [users.id],
+  }),
+  contact: one(users, {
+    fields: [contacts.contactWeyId],
+    references: [users.weyId],
+  }),
+}));
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  sender: one(users, {
+    fields: [messages.fromUserId],
+    references: [users.id],
+    relationName: "sender",
+  }),
+  receiver: one(users, {
+    fields: [messages.toWeyId],
+    references: [users.weyId],
+    relationName: "receiver",
   }),
 }));
 
@@ -47,10 +93,27 @@ export const insertTransactionSchema = createInsertSchema(transactions).omit({
   date: z.coerce.date(),
 });
 
+export const insertContactSchema = createInsertSchema(contacts).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+});
+
+export const insertMessageSchema = createInsertSchema(messages).omit({
+  id: true,
+  fromUserId: true,
+  createdAt: true,
+  isRead: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+export type InsertContact = z.infer<typeof insertContactSchema>;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type User = typeof users.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
+export type Contact = typeof contacts.$inferSelect;
+export type Message = typeof messages.$inferSelect;
 
 // Authentication schemas
 export const loginSchema = z.object({

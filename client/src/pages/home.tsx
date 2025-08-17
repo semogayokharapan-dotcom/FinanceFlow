@@ -9,14 +9,16 @@ import CategoryDistribution from "@/components/category-distribution";
 import SmartQuickActions from "@/components/smart-quick-actions";
 import ReportsTab from "@/components/reports-tab";
 import { AnalyticsTab } from "@/components/analytics-tab";
+import ChatTab from "@/components/chat-tab"; // Import ChatTab
 import { login, getStoredPrivateKey, getStoredUserData, clearStoredPrivateKey, clearUserData } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import type { AuthUser } from "@/lib/auth";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Import Tabs components
 
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'reports' | 'analytics'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'reports' | 'analytics' | 'chat'>('dashboard'); // Add 'chat' to the state type
   const [showQuickInput, setShowQuickInput] = useState(false);
   const { toast } = useToast();
 
@@ -24,7 +26,7 @@ export default function Home() {
     // Check if user is already logged in
     const storedKey = getStoredPrivateKey();
     const storedUser = getStoredUserData();
-    
+
     if (storedKey && storedUser) {
       // Validate with backend
       login({ privateKey: storedKey })
@@ -118,51 +120,35 @@ export default function Home() {
 
       {/* Navigation Tabs */}
       <div className="max-w-md mx-auto px-4">
-        <div className="bg-white rounded-2xl p-2 shadow-sm">
-          <div className="flex space-x-1">
-            <Button
-              variant={activeTab === 'dashboard' ? 'default' : 'ghost'}
-              className="flex-1 py-3 px-4 text-sm font-medium"
-              onClick={() => setActiveTab('dashboard')}
-            >
-              📊 Dashboard
-            </Button>
-            <Button
-              variant={activeTab === 'reports' ? 'default' : 'ghost'}
-              className="flex-1 py-3 px-4 text-sm font-medium"
-              onClick={() => setActiveTab('reports')}
-            >
-              📅 Laporan
-            </Button>
-            <Button
-              variant={activeTab === 'analytics' ? 'default' : 'ghost'}
-              className="flex-1 py-3 px-4 text-sm font-medium"
-              onClick={() => setActiveTab('analytics')}
-            >
-              📊 Grafik
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Tab Content */}
-      <div className="max-w-md mx-auto px-4 py-4 space-y-4">
-        {activeTab === 'dashboard' && (
-          <>
+        <Tabs value={activeTab} onValueChange={(value: any) => setActiveTab(value)} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5"> {/* Changed col-span to 5 */}
+            <TabsTrigger value="dashboard">📊 Dashboard</TabsTrigger>
+            <TabsTrigger value="reports">📅 Laporan</TabsTrigger>
+            <TabsTrigger value="analytics">📊 Grafik</TabsTrigger>
+            {/* <TabsTrigger value="templates">⚡ Templates</TabsTrigger> Removed as not in original code */}
+            <TabsTrigger value="chat">💬 Wey Chat!</TabsTrigger> {/* Added Chat Tab */}
+          </TabsList>
+          
+          {/* Tab Content */}
+          <TabsContent value="dashboard">
             <SmartQuickActions userId={currentUser.id} />
             <TransactionForm userId={currentUser.id} />
             <RecentTransactions userId={currentUser.id} />
             <CategoryDistribution userId={currentUser.id} />
-          </>
-        )}
+          </TabsContent>
 
-        {activeTab === 'reports' && (
-          <ReportsTab userId={currentUser.id} />
-        )}
+          <TabsContent value="reports">
+            <ReportsTab userId={currentUser.id} />
+          </TabsContent>
 
-        {activeTab === 'analytics' && (
-          <AnalyticsTab userId={currentUser.id} />
-        )}
+          <TabsContent value="analytics">
+            <AnalyticsTab userId={currentUser.id} />
+          </TabsContent>
+
+          <TabsContent value="chat"> {/* Added Chat Tab Content */}
+            <ChatTab userId={currentUser.id} />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Floating Action Button */}

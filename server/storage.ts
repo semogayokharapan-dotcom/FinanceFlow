@@ -1,45 +1,96 @@
 import { type User, type InsertUser, type Transaction, type InsertTransaction } from "@shared/schema";
 import { nanoid } from "nanoid";
+import * as schema from "@shared/schema";
+import { desc, eq, gte, and, or, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
-  getUserByPrivateKey(privateKey: string): Promise<User | undefined>;
+  getUserByPrivateKey(privateKey: string): Promise<User | null>;
   createUser(user: InsertUser): Promise<User>;
-  
+  getUserById(userId: string): Promise<schema.User | null>;
+
   // Transaction methods
   getUserTransactions(userId: string, limit?: number): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction & { userId: string }): Promise<Transaction>;
   deleteTransaction(id: string, userId: string): Promise<void>;
-  
+
   // Analytics methods
   getUserBalance(userId: string): Promise<{ income: number; expense: number; balance: number }>;
   getUserTransactionsByDateRange(userId: string, startDate: Date, endDate: Date): Promise<Transaction[]>;
   getUserCategoryStats(userId: string): Promise<Array<{ category: string; total: number; count: number }>>;
   getWeeklyStats(userId: string, weekCount: number): Promise<Array<{ week: string; income: number; expense: number; balance: number; startDate: Date; endDate: Date }>>;
+
+  // Chat methods
+  generateWeyId(): string;
+  createContact(userId: string, data: schema.InsertContact): Promise<schema.Contact>;
+  getUserContacts(userId: string): Promise<any[]>;
+  sendMessage(fromUserId: string, data: schema.InsertMessage): Promise<schema.Message>;
+  getChatMessages(userId: string, contactWeyId: string, limit?: number): Promise<any[]>;
+  markMessagesAsRead(userId: string, contactWeyId: string): Promise<void>;
+  deleteContact(userId: string, contactId: string): Promise<void>;
 }
 
 export class MemoryStorage implements IStorage {
+  // Dummy implementation for db and other dependencies if MemoryStorage is meant to be used without a real DB
+  private db: any; // Replace with actual DB client type if needed
   private users: User[] = [];
   private transactions: Transaction[] = [];
+
+  constructor() {
+    // Initialize db with a mock or dummy if not using a real database
+    // For example: this.db = new MockDatabaseClient();
+    // If this class is not meant to be used without a real DB,
+    // you might need to adjust the constructor or how it's instantiated.
+  }
 
   async getUser(id: string): Promise<User | undefined> {
     return this.users.find(user => user.id === id);
   }
 
-  async getUserByPrivateKey(privateKey: string): Promise<User | undefined> {
-    return this.users.find(user => user.privateKey === privateKey);
+  async getUserByPrivateKey(privateKey: string): Promise<schema.User | null> {
+    const [user] = await this.db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.privateKey, privateKey))
+      .limit(1);
+
+    return user || null;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const user: User = {
-      id: nanoid(),
-      ...insertUser,
-      createdAt: new Date(),
-    };
-    this.users.push(user);
+  async createUser(userData: schema.InsertUser): Promise<schema.User> {
+    let weyId: string;
+    let isUnique = false;
+
+    // Generate unique Wey ID
+    do {
+      weyId = this.generateWeyId();
+      const existing = await this.db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.weyId, weyId))
+        .limit(1);
+      isUnique = existing.length === 0;
+    } while (!isUnique);
+
+    const [user] = await this.db
+      .insert(schema.users)
+      .values({ ...userData, weyId })
+      .returning();
+
     return user;
   }
+
+  async getUserById(userId: string): Promise<schema.User | null> {
+    const [user] = await this.db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, userId))
+      .limit(1);
+
+    return user || null;
+  }
+
 
   async getUserTransactions(userId: string, limit = 50): Promise<Transaction[]> {
     return this.transactions
@@ -67,15 +118,15 @@ export class MemoryStorage implements IStorage {
 
   async getUserBalance(userId: string): Promise<{ income: number; expense: number; balance: number }> {
     const userTransactions = this.transactions.filter(t => t.userId === userId);
-    
+
     const income = userTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + Number(t.amount), 0);
-    
+
     const expense = userTransactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + Number(t.amount), 0);
-    
+
     const balance = income - expense;
 
     return { income, expense, balance };
@@ -85,8 +136,8 @@ export class MemoryStorage implements IStorage {
     return this.transactions
       .filter(t => {
         const transactionDate = new Date(t.date);
-        return t.userId === userId && 
-               transactionDate >= startDate && 
+        return t.userId === userId &&
+               transactionDate >= startDate &&
                transactionDate <= endDate;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -103,7 +154,7 @@ export class MemoryStorage implements IStorage {
     );
 
     const categoryStats: Record<string, { total: number; count: number }> = {};
-    
+
     expenseTransactions.forEach(transaction => {
       const category = transaction.category;
       if (!categoryStats[category]) {
@@ -120,49 +171,218 @@ export class MemoryStorage implements IStorage {
     }));
   }
 
-  async getWeeklyStats(userId: string, weekCount: number = 4): Promise<Array<{ week: string; income: number; expense: number; balance: number; startDate: Date; endDate: Date }>> {
-    const stats = [];
-    const now = new Date();
-    
-    for (let i = 0; i < weekCount; i++) {
-      // Calculate start and end of week (Monday to Sunday)
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1) - (i * 7));
-      weekStart.setHours(0, 0, 0, 0);
-      
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6);
-      weekEnd.setHours(23, 59, 59, 999);
+  async getWeeklyStats(userId: string, weekCount: number = 4): Promise<any[]> {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - (weekCount * 7));
 
-      // Get transactions for this week
-      const weekTransactions = await this.getUserTransactionsByDateRange(userId, weekStart, weekEnd);
-      
-      const income = weekTransactions
-        .filter(t => t.type === 'income')
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-      
-      const expense = weekTransactions
-        .filter(t => t.type === 'expense')
-        .reduce((sum, t) => sum + Number(t.amount), 0);
+    const transactions = await this.db
+      .select()
+      .from(schema.transactions)
+      .where(
+        and(
+          eq(schema.transactions.userId, userId),
+          gte(schema.transactions.date, startDate)
+        )
+      )
+      .orderBy(desc(schema.transactions.date));
 
-      const balance = income - expense;
-      
-      // Format week label
-      const weekLabel = i === 0 ? 'Minggu Ini' : 
-                      i === 1 ? 'Minggu Lalu' : 
-                      `${i + 1} Minggu Lalu`;
+    // Group by week
+    const weeklyData: Record<string, { income: number; expense: number; transactions: any[] }> = {};
 
-      stats.push({
-        week: weekLabel,
-        income,
-        expense,
-        balance,
-        startDate: weekStart,
-        endDate: weekEnd,
-      });
+    transactions.forEach(transaction => {
+      const transactionDate = new Date(transaction.date);
+      const weekStart = new Date(transactionDate);
+      weekStart.setDate(transactionDate.getDate() - transactionDate.getDay());
+      const weekKey = weekStart.toISOString().split('T')[0];
+
+      if (!weeklyData[weekKey]) {
+        weeklyData[weekKey] = { income: 0, expense: 0, transactions: [] };
+      }
+
+      const amount = parseFloat(transaction.amount);
+      if (transaction.type === 'income') {
+        weeklyData[weekKey].income += amount;
+      } else {
+        weeklyData[weekKey].expense += amount;
+      }
+      weeklyData[weekKey].transactions.push(transaction);
+    });
+
+    // Convert to array and format
+    return Object.entries(weeklyData)
+      .map(([weekStart, data]) => {
+        const startDate = new Date(weekStart);
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 6);
+
+        return {
+          week: `Minggu ${startDate.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' })} - ${endDate.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' })}`,
+          income: data.income,
+          expense: data.expense,
+          balance: data.income - data.expense,
+          transactionCount: data.transactions.length,
+          weekStart: weekStart
+        };
+      })
+      .sort((a, b) => new Date(b.weekStart).getTime() - new Date(a.weekStart).getTime())
+      .slice(0, weekCount);
+  }
+
+  // Chat functions
+  generateWeyId(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 8; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  async createContact(userId: string, data: schema.InsertContact): Promise<schema.Contact> {
+    // Check if Wey ID exists
+    const targetUser = await this.db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.weyId, data.contactWeyId))
+      .limit(1);
+
+    if (targetUser.length === 0) {
+      throw new Error("Wey ID tidak ditemukan");
     }
 
-    return stats;
+    // Check if contact already exists
+    const existingContact = await this.db
+      .select()
+      .from(schema.contacts)
+      .where(
+        and(
+          eq(schema.contacts.userId, userId),
+          eq(schema.contacts.contactWeyId, data.contactWeyId)
+        )
+      )
+      .limit(1);
+
+    if (existingContact.length > 0) {
+      throw new Error("Kontak sudah ditambahkan");
+    }
+
+    const [contact] = await this.db
+      .insert(schema.contacts)
+      .values({ ...data, userId })
+      .returning();
+
+    return contact;
+  }
+
+  async getUserContacts(userId: string): Promise<any[]> {
+    return await this.db
+      .select({
+        id: schema.contacts.id,
+        contactName: schema.contacts.contactName,
+        contactWeyId: schema.contacts.contactWeyId,
+        fullName: schema.users.fullName,
+        createdAt: schema.contacts.createdAt,
+      })
+      .from(schema.contacts)
+      .leftJoin(schema.users, eq(schema.contacts.contactWeyId, schema.users.weyId))
+      .where(eq(schema.contacts.userId, userId))
+      .orderBy(desc(schema.contacts.createdAt));
+  }
+
+  async sendMessage(fromUserId: string, data: schema.InsertMessage): Promise<schema.Message> {
+    // Check if target Wey ID exists
+    const targetUser = await this.db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.weyId, data.toWeyId))
+      .limit(1);
+
+    if (targetUser.length === 0) {
+      throw new Error("Wey ID tidak ditemukan");
+    }
+
+    const [message] = await this.db
+      .insert(schema.messages)
+      .values({ ...data, fromUserId })
+      .returning();
+
+    return message;
+  }
+
+  async getChatMessages(userId: string, contactWeyId: string, limit: number = 50): Promise<any[]> {
+    const userWeyId = await this.db
+      .select({ weyId: schema.users.weyId })
+      .from(schema.users)
+      .where(eq(schema.users.id, userId))
+      .limit(1);
+
+    if (userWeyId.length === 0) {
+      throw new Error("User tidak ditemukan");
+    }
+
+    return await this.db
+      .select({
+        id: schema.messages.id,
+        content: schema.messages.content,
+        messageType: schema.messages.messageType,
+        isRead: schema.messages.isRead,
+        createdAt: schema.messages.createdAt,
+        fromUserId: schema.messages.fromUserId,
+        toWeyId: schema.messages.toWeyId,
+        senderName: schema.users.fullName,
+        isFromMe: sql<boolean>`${schema.messages.fromUserId} = ${userId}`,
+      })
+      .from(schema.messages)
+      .leftJoin(schema.users, eq(schema.messages.fromUserId, schema.users.id))
+      .where(
+        or(
+          and(
+            eq(schema.messages.fromUserId, userId),
+            eq(schema.messages.toWeyId, contactWeyId)
+          ),
+          and(
+            eq(schema.messages.toWeyId, userWeyId[0].weyId),
+            sql`${schema.messages.fromUserId} = (SELECT id FROM users WHERE wey_id = ${contactWeyId})`
+          )
+        )
+      )
+      .orderBy(desc(schema.messages.createdAt))
+      .limit(limit);
+  }
+
+  async markMessagesAsRead(userId: string, contactWeyId: string): Promise<void> {
+    const userWeyId = await this.db
+      .select({ weyId: schema.users.weyId })
+      .from(schema.users)
+      .where(eq(schema.users.id, userId))
+      .limit(1);
+
+    if (userWeyId.length === 0) {
+      return;
+    }
+
+    await this.db
+      .update(schema.messages)
+      .set({ isRead: true })
+      .where(
+        and(
+          eq(schema.messages.toWeyId, userWeyId[0].weyId),
+          sql`${schema.messages.fromUserId} = (SELECT id FROM users WHERE wey_id = ${contactWeyId})`,
+          eq(schema.messages.isRead, false)
+        )
+      );
+  }
+
+  async deleteContact(userId: string, contactId: string): Promise<void> {
+    await this.db
+      .delete(schema.contacts)
+      .where(
+        and(
+          eq(schema.contacts.id, contactId),
+          eq(schema.contacts.userId, userId)
+        )
+      );
   }
 }
 
