@@ -1,7 +1,9 @@
+
 import { type User, type InsertUser, type Transaction, type InsertTransaction } from "@shared/schema";
 import { nanoid } from "nanoid";
 import * as schema from "@shared/schema";
 import { desc, eq, gte, and, or, sql } from "drizzle-orm";
+import { db } from "./db";
 
 export interface IStorage {
   // User methods
@@ -20,6 +22,7 @@ export interface IStorage {
   getUserTransactionsByDateRange(userId: string, startDate: Date, endDate: Date): Promise<Transaction[]>;
   getUserCategoryStats(userId: string): Promise<Array<{ category: string; total: number; count: number }>>;
   getWeeklyStats(userId: string, weekCount: number): Promise<Array<{ week: string; income: number; expense: number; balance: number; startDate: Date; endDate: Date }>>;
+  getTransactionsByDateRange(userId: string, startDate: Date, endDate: Date): Promise<Transaction[]>;
 
   // Chat methods
   generateWeyId(): string;
@@ -31,30 +34,22 @@ export interface IStorage {
   deleteContact(userId: string, contactId: string): Promise<void>;
 }
 
-export class MemoryStorage implements IStorage {
-  // Dummy implementation for db and other dependencies if MemoryStorage is meant to be used without a real DB
-  private db: any; // Replace with actual DB client type if needed
-  private users: User[] = [];
-  private transactions: Transaction[] = [];
-
-  constructor() {
-    // Initialize db with a mock or dummy if not using a real database
-    // For example: this.db = new MockDatabaseClient();
-    // If this class is not meant to be used without a real DB,
-    // you might need to adjust the constructor or how it's instantiated.
-  }
-
+export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.find(user => user.id === id);
+    const [user] = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, id))
+      .limit(1);
+    return user;
   }
 
   async getUserByPrivateKey(privateKey: string): Promise<schema.User | null> {
-    const [user] = await this.db
+    const [user] = await db
       .select()
       .from(schema.users)
       .where(eq(schema.users.privateKey, privateKey))
       .limit(1);
-
     return user || null;
   }
 
@@ -65,7 +60,7 @@ export class MemoryStorage implements IStorage {
     // Generate unique Wey ID
     do {
       weyId = this.generateWeyId();
-      const existing = await this.db
+      const existing = await db
         .select()
         .from(schema.users)
         .where(eq(schema.users.weyId, weyId))
@@ -73,7 +68,7 @@ export class MemoryStorage implements IStorage {
       isUnique = existing.length === 0;
     } while (!isUnique);
 
-    const [user] = await this.db
+    const [user] = await db
       .insert(schema.users)
       .values({ ...userData, weyId })
       .returning();
@@ -82,80 +77,92 @@ export class MemoryStorage implements IStorage {
   }
 
   async getUserById(userId: string): Promise<schema.User | null> {
-    const [user] = await this.db
+    const [user] = await db
       .select()
       .from(schema.users)
       .where(eq(schema.users.id, userId))
       .limit(1);
-
     return user || null;
   }
 
-
   async getUserTransactions(userId: string, limit = 50): Promise<Transaction[]> {
-    return this.transactions
-      .filter(transaction => transaction.userId === userId)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, limit);
+    return await db
+      .select()
+      .from(schema.transactions)
+      .where(eq(schema.transactions.userId, userId))
+      .orderBy(desc(schema.transactions.date))
+      .limit(limit);
   }
 
   async createTransaction(transaction: InsertTransaction & { userId: string }): Promise<Transaction> {
-    const newTransaction: Transaction = {
-      id: nanoid(),
-      ...transaction,
-      description: transaction.description || null,
-      createdAt: new Date(),
-    };
-    this.transactions.push(newTransaction);
+    const [newTransaction] = await db
+      .insert(schema.transactions)
+      .values(transaction)
+      .returning();
     return newTransaction;
   }
 
   async deleteTransaction(id: string, userId: string): Promise<void> {
-    this.transactions = this.transactions.filter(
-      transaction => !(transaction.id === id && transaction.userId === userId)
-    );
+    await db
+      .delete(schema.transactions)
+      .where(
+        and(
+          eq(schema.transactions.id, id),
+          eq(schema.transactions.userId, userId)
+        )
+      );
   }
 
   async getUserBalance(userId: string): Promise<{ income: number; expense: number; balance: number }> {
-    const userTransactions = this.transactions.filter(t => t.userId === userId);
+    const transactions = await db
+      .select()
+      .from(schema.transactions)
+      .where(eq(schema.transactions.userId, userId));
 
-    const income = userTransactions
+    const income = transactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
-    const expense = userTransactions
+    const expense = transactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
     const balance = income - expense;
-
     return { income, expense, balance };
   }
 
   async getUserTransactionsByDateRange(userId: string, startDate: Date, endDate: Date): Promise<Transaction[]> {
-    return this.transactions
-      .filter(t => {
-        const transactionDate = new Date(t.date);
-        return t.userId === userId &&
-               transactionDate >= startDate &&
-               transactionDate <= endDate;
-      })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return await db
+      .select()
+      .from(schema.transactions)
+      .where(
+        and(
+          eq(schema.transactions.userId, userId),
+          gte(schema.transactions.date, startDate),
+          sql`${schema.transactions.date} <= ${endDate}`
+        )
+      )
+      .orderBy(desc(schema.transactions.date));
   }
 
   async getTransactionsByDateRange(userId: string, startDate: Date, endDate: Date): Promise<Transaction[]> {
-    // Alias for getUserTransactionsByDateRange for backward compatibility
     return this.getUserTransactionsByDateRange(userId, startDate, endDate);
   }
 
   async getUserCategoryStats(userId: string): Promise<Array<{ category: string; total: number; count: number }>> {
-    const expenseTransactions = this.transactions.filter(
-      t => t.userId === userId && t.type === 'expense'
-    );
+    const transactions = await db
+      .select()
+      .from(schema.transactions)
+      .where(
+        and(
+          eq(schema.transactions.userId, userId),
+          eq(schema.transactions.type, 'expense')
+        )
+      );
 
     const categoryStats: Record<string, { total: number; count: number }> = {};
 
-    expenseTransactions.forEach(transaction => {
+    transactions.forEach(transaction => {
       const category = transaction.category;
       if (!categoryStats[category]) {
         categoryStats[category] = { total: 0, count: 0 };
@@ -176,7 +183,7 @@ export class MemoryStorage implements IStorage {
     const startDate = new Date();
     startDate.setDate(endDate.getDate() - (weekCount * 7));
 
-    const transactions = await this.db
+    const transactions = await db
       .select()
       .from(schema.transactions)
       .where(
@@ -187,7 +194,6 @@ export class MemoryStorage implements IStorage {
       )
       .orderBy(desc(schema.transactions.date));
 
-    // Group by week
     const weeklyData: Record<string, { income: number; expense: number; transactions: any[] }> = {};
 
     transactions.forEach(transaction => {
@@ -209,7 +215,6 @@ export class MemoryStorage implements IStorage {
       weeklyData[weekKey].transactions.push(transaction);
     });
 
-    // Convert to array and format
     return Object.entries(weeklyData)
       .map(([weekStart, data]) => {
         const startDate = new Date(weekStart);
@@ -229,7 +234,6 @@ export class MemoryStorage implements IStorage {
       .slice(0, weekCount);
   }
 
-  // Chat functions
   generateWeyId(): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let result = '';
@@ -240,8 +244,7 @@ export class MemoryStorage implements IStorage {
   }
 
   async createContact(userId: string, data: schema.InsertContact): Promise<schema.Contact> {
-    // Check if Wey ID exists
-    const targetUser = await this.db
+    const targetUser = await db
       .select()
       .from(schema.users)
       .where(eq(schema.users.weyId, data.contactWeyId))
@@ -251,8 +254,7 @@ export class MemoryStorage implements IStorage {
       throw new Error("Wey ID tidak ditemukan");
     }
 
-    // Check if contact already exists
-    const existingContact = await this.db
+    const existingContact = await db
       .select()
       .from(schema.contacts)
       .where(
@@ -267,7 +269,7 @@ export class MemoryStorage implements IStorage {
       throw new Error("Kontak sudah ditambahkan");
     }
 
-    const [contact] = await this.db
+    const [contact] = await db
       .insert(schema.contacts)
       .values({ ...data, userId })
       .returning();
@@ -276,7 +278,7 @@ export class MemoryStorage implements IStorage {
   }
 
   async getUserContacts(userId: string): Promise<any[]> {
-    return await this.db
+    return await db
       .select({
         id: schema.contacts.id,
         contactName: schema.contacts.contactName,
@@ -291,8 +293,7 @@ export class MemoryStorage implements IStorage {
   }
 
   async sendMessage(fromUserId: string, data: schema.InsertMessage): Promise<schema.Message> {
-    // Check if target Wey ID exists
-    const targetUser = await this.db
+    const targetUser = await db
       .select()
       .from(schema.users)
       .where(eq(schema.users.weyId, data.toWeyId))
@@ -302,7 +303,7 @@ export class MemoryStorage implements IStorage {
       throw new Error("Wey ID tidak ditemukan");
     }
 
-    const [message] = await this.db
+    const [message] = await db
       .insert(schema.messages)
       .values({ ...data, fromUserId })
       .returning();
@@ -311,7 +312,7 @@ export class MemoryStorage implements IStorage {
   }
 
   async getChatMessages(userId: string, contactWeyId: string, limit: number = 50): Promise<any[]> {
-    const userWeyId = await this.db
+    const userWeyId = await db
       .select({ weyId: schema.users.weyId })
       .from(schema.users)
       .where(eq(schema.users.id, userId))
@@ -321,7 +322,7 @@ export class MemoryStorage implements IStorage {
       throw new Error("User tidak ditemukan");
     }
 
-    return await this.db
+    return await db
       .select({
         id: schema.messages.id,
         content: schema.messages.content,
@@ -352,7 +353,7 @@ export class MemoryStorage implements IStorage {
   }
 
   async markMessagesAsRead(userId: string, contactWeyId: string): Promise<void> {
-    const userWeyId = await this.db
+    const userWeyId = await db
       .select({ weyId: schema.users.weyId })
       .from(schema.users)
       .where(eq(schema.users.id, userId))
@@ -362,7 +363,7 @@ export class MemoryStorage implements IStorage {
       return;
     }
 
-    await this.db
+    await db
       .update(schema.messages)
       .set({ isRead: true })
       .where(
@@ -375,7 +376,7 @@ export class MemoryStorage implements IStorage {
   }
 
   async deleteContact(userId: string, contactId: string): Promise<void> {
-    await this.db
+    await db
       .delete(schema.contacts)
       .where(
         and(
@@ -386,4 +387,4 @@ export class MemoryStorage implements IStorage {
   }
 }
 
-export const storage = new MemoryStorage();
+export const storage = new DatabaseStorage();
