@@ -7,6 +7,9 @@ This is a full-stack personal finance management application built with Express.
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Migration completed: Successfully migrated from PostgreSQL to memory storage for Replit compatibility.
+Chat features: Restored and fully functional with contacts, direct messaging, and global chat.
+GitHub compatibility: Project structure maintained for easy GitHub push capability.
 
 ## System Architecture
 
@@ -20,16 +23,19 @@ Preferred communication style: Simple, everyday language.
 
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript
-- **Database**: PostgreSQL with Drizzle ORM
-- **Database Provider**: Neon Database (serverless PostgreSQL)
+- **Database**: Memory Storage (migrated from PostgreSQL for Replit compatibility)
+- **Database ORM**: Drizzle schema maintained for type safety
 - **API Pattern**: RESTful API with JSON responses
 - **Validation**: Zod for schema validation
-- **Authentication**: Custom private key-based system (no sessions/JWT)
+- **Authentication**: Custom private key-based system with Wey ID for chat features
 
 ### Database Schema
-- **Users Table**: Stores user profiles with unique private keys and monthly targets
-- **Transactions Table**: Stores income/expense records with categories and descriptions
-- **Relationships**: One-to-many between users and transactions
+- **Users Table**: Stores user profiles with unique private keys, monthly targets, and Wey IDs for chat
+- **Transactions Table**: Stores income/expense records with categories and descriptions  
+- **Contacts Table**: Stores user contacts for private messaging
+- **Chat Messages Table**: Stores private messages between users
+- **Global Chat Table**: Stores global chat room messages
+- **Relationships**: One-to-many between users and transactions, contacts, messages
 
 ## Key Components
 
@@ -55,6 +61,13 @@ Preferred communication style: Simple, everyday language.
 - **Target Progress**: Visual progress bars for monthly goals
 - **Category Insights**: Spending distribution by category
 - **Time-based Reports**: Daily, weekly, monthly views
+
+### Chat Features
+- **Wey Chat System**: Unique 8-character Wey IDs for user identification
+- **Private Messaging**: Direct messages between contacts
+- **Contact Management**: Add/remove contacts by Wey ID
+- **Global Chat**: Public chat room for all users
+- **Message Types**: Text messages and ping notifications
 
 ## Data Flow
 

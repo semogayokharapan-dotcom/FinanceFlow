@@ -5,6 +5,7 @@ export interface AuthUser {
   id: string;
   fullName: string;
   monthlyTarget: string;
+  weyId: string;
 }
 
 export async function login(credentials: LoginRequest): Promise<AuthUser> {

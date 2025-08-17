@@ -1,7 +1,14 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { loginSchema, registerSchema, insertTransactionSchema } from "@shared/schema";
+import { 
+  loginSchema, 
+  registerSchema, 
+  insertTransactionSchema,
+  insertContactSchema,
+  insertChatMessageSchema,
+  insertGlobalChatSchema
+} from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -19,7 +26,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.createUser(data);
       res.json({ 
         message: "Akun berhasil dibuat", 
-        user: { id: user.id, fullName: user.fullName, monthlyTarget: user.monthlyTarget }
+        user: { id: user.id, fullName: user.fullName, monthlyTarget: user.monthlyTarget, weyId: user.weyId }
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -40,7 +47,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ 
         message: "Login berhasil",
-        user: { id: user.id, fullName: user.fullName, monthlyTarget: user.monthlyTarget }
+        user: { id: user.id, fullName: user.fullName, monthlyTarget: user.monthlyTarget, weyId: user.weyId }
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -205,17 +212,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/chat/contacts/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
-      const { contactWeyId, contactName } = req.body;
+      const data = insertContactSchema.parse(req.body);
       
       // Check if contact exists
-      const contactUser = await storage.getUserByWeyId(contactWeyId);
+      const contactUser = await storage.getUserByWeyId(data.contactWeyId);
       if (!contactUser) {
         return res.status(404).json({ message: "Wey ID tidak ditemukan" });
       }
 
-      const contact = await storage.addContact(userId, contactWeyId, contactName);
+      const contact = await storage.addContact(userId, data);
       res.json(contact);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Data kontak tidak valid", errors: error.errors });
+      }
       res.status(500).json({ message: "Gagal menambah kontak" });
     }
   });
@@ -233,11 +243,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/chat/messages/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
-      const { toWeyId, content, messageType } = req.body;
+      const data = insertChatMessageSchema.parse(req.body);
       
-      const message = await storage.sendMessage(userId, toWeyId, content, messageType);
+      const message = await storage.sendMessage(userId, data);
       res.json(message);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Data pesan tidak valid", errors: error.errors });
+      }
       res.status(500).json({ message: "Gagal mengirim pesan" });
     }
   });
@@ -265,11 +278,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/chat/global/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
-      const { content, messageType } = req.body;
+      const data = insertGlobalChatSchema.parse(req.body);
       
-      const message = await storage.sendGlobalMessage(userId, content, messageType);
+      const message = await storage.sendGlobalMessage(userId, data);
       res.json(message);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Data pesan global tidak valid", errors: error.errors });
+      }
       res.status(500).json({ message: "Gagal mengirim pesan global" });
     }
   });
