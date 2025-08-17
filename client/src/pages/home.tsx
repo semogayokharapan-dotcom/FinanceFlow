@@ -121,12 +121,11 @@ export default function Home() {
       {/* Navigation Tabs */}
       <div className="max-w-md mx-auto px-4">
         <Tabs value={activeTab} onValueChange={(value: any) => setActiveTab(value)} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5"> {/* Changed col-span to 5 */}
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="dashboard">📊 Dashboard</TabsTrigger>
             <TabsTrigger value="reports">📅 Laporan</TabsTrigger>
             <TabsTrigger value="analytics">📊 Grafik</TabsTrigger>
-            {/* <TabsTrigger value="templates">⚡ Templates</TabsTrigger> Removed as not in original code */}
-            <TabsTrigger value="chat">💬 Wey Chat!</TabsTrigger> {/* Added Chat Tab */}
+            <TabsTrigger value="chat">💬 Chat</TabsTrigger>
           </TabsList>
           
           {/* Tab Content */}
@@ -145,8 +144,12 @@ export default function Home() {
             <AnalyticsTab userId={currentUser.id} />
           </TabsContent>
 
-          <TabsContent value="chat"> {/* Added Chat Tab Content */}
-            <ChatTab userId={currentUser.id} />
+          <TabsContent value="chat">
+            <ChatTab 
+              userId={currentUser.id} 
+              userWeyId={currentUser.weyId}
+              userName={currentUser.fullName}
+            />
           </TabsContent>
         </Tabs>
       </div>

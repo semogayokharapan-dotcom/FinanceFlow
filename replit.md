@@ -8,8 +8,9 @@ This is a full-stack personal finance management application built with Express.
 
 Preferred communication style: Simple, everyday language.
 Migration completed: Successfully migrated from PostgreSQL to memory storage for Replit compatibility.
-Chat features: Restored and fully functional with contacts, direct messaging, and global chat.
+Chat features: WhatsApp-like interface with Wey ID system similar to BBM, includes contacts management, private messaging, and global chat.
 GitHub compatibility: Project structure maintained for easy GitHub push capability.
+Important: Do not remove existing features without explicit user permission.
 
 ## System Architecture
 
