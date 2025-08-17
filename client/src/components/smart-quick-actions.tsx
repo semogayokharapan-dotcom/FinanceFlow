@@ -47,12 +47,22 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
   
   // Attractive emoji options for user selection
   const emojiOptions = [
-    '🍔', '🍕', '🌮', '🍜', '🍱', '🥗', '🍰', '🧁', '☕', '🥤',
-    '🚗', '🚌', '🚊', '🚲', '🛵', '✈️', '🚕', '🚇', '🚢', '🚁',
-    '🛍️', '👕', '👟', '💄', '📱', '💻', '🎮', '📚', '🏠', '⚡',
-    '🎬', '🎵', '🎨', '🎪', '🎯', '🎲', '🎸', '🎹', '🎺', '🎤',
-    '💼', '💰', '📈', '🏆', '🎁', '💎', '🔧', '🏢', '💡', '⭐',
-    '❤️', '🌟', '🎯', '🔥', '💪', '🚀', '🌈', '🎊', '🎉', '✨'
+    // Food & Drinks
+    '🍔', '🍕', '🌮', '🍜', '🍱', '🥗', '🍰', '🧁', '☕', '🥤', '🍦', '🥙', '🍣', '🥪', '🍟', '🌭', '🥐', '🍪', '🧀', '🥩',
+    // Transport
+    '🚗', '🚌', '🚊', '🚲', '🛵', '✈️', '🚕', '🚇', '🚢', '🚁', '🛺', '🛻', '🚜', '🏍️', '🚠', '🚖', '🚒', '🚑', '🚓', '🚐',
+    // Shopping & Items
+    '🛍️', '👕', '👟', '💄', '📱', '💻', '🎮', '📚', '🏠', '⚡', '🛒', '💳', '🎒', '👜', '💍', '⌚', '🕶️', '🧳', '👗', '👠',
+    // Entertainment & Activities
+    '🎬', '🎵', '🎨', '🎪', '🎯', '🎲', '🎸', '🎹', '🎺', '🎤', '🎭', '🎫', '🎳', '🎮', '🎲', '🎯', '🎨', '🎪', '🎡', '🎢',
+    // Work & Money
+    '💼', '💰', '📈', '🏆', '🎁', '💎', '🔧', '🏢', '💡', '⭐', '📊', '💸', '💵', '💴', '💶', '💷', '🏦', '📝', '📋', '💼',
+    // Special & Fun
+    '❤️', '🌟', '🎯', '🔥', '💪', '🚀', '🌈', '🎊', '🎉', '✨', '💫', '🌺', '🌸', '🌼', '🌻', '🌹', '💝', '🎀', '🦄', '🍀',
+    // Health & Beauty
+    '💊', '🏥', '💅', '💆', '💇', '🧴', '🧼', '🪥', '🧽', '🚿', '🛁', '🧖', '💆‍♀️', '💇‍♀️', '🧘', '🏃', '⛹️', '🤸', '🧗', '🏊',
+    // Education & Skills
+    '📖', '📝', '🎓', '📚', '✏️', '🖊️', '📐', '📏', '🖇️', '📎', '📌', '📍', '🔍', '💡', '🧠', '📊', '📈', '📉', '📋', '📁'
   ];
 
   // Form state for new template
@@ -131,7 +141,9 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
       amount: 25000, 
       category: 'food', 
       type: 'expense',
-      description: 'Makanan' 
+      description: 'Makanan',
+      isEditable: true,
+      isCustom: true
     },
     { 
       id: 'transport', 
@@ -140,7 +152,9 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
       amount: 15000, 
       category: 'transport', 
       type: 'expense',
-      description: 'Transportasi' 
+      description: 'Transportasi',
+      isEditable: true,
+      isCustom: true
     },
     { 
       id: 'coffee', 
@@ -149,7 +163,9 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
       amount: 12000, 
       category: 'food', 
       type: 'expense',
-      description: 'Minuman' 
+      description: 'Minuman',
+      isEditable: true,
+      isCustom: true
     },
     // Default income templates
     { 
@@ -159,7 +175,9 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
       amount: 5000000, 
       category: 'salary', 
       type: 'income',
-      description: 'Gaji bulanan' 
+      description: 'Gaji bulanan',
+      isEditable: true,
+      isCustom: true
     },
   ];
 
@@ -279,10 +297,10 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
   };
 
   const handleAddTemplate = () => {
-    if (!newTemplate.amount) {
+    if (!newTemplate.amount || newTemplate.amount === '' || parseInt(newTemplate.amount) <= 0) {
       toast({
         title: "❌ Error",
-        description: "Jumlah harus diisi",
+        description: "Jumlah harus diisi dan lebih dari 0",
         variant: "destructive",
       });
       return;
@@ -590,13 +608,13 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium">Emoji</label>
-              <div className="grid grid-cols-10 gap-2 p-3 border rounded-md max-h-32 overflow-y-auto">
+              <div className="grid grid-cols-8 gap-1 p-3 border rounded-md max-h-40 overflow-y-auto bg-gray-50">
                 {emojiOptions.map((emoji, index) => (
                   <button
                     key={index}
                     type="button"
-                    className={`text-xl p-2 rounded hover:bg-gray-100 transition-colors ${
-                      newTemplate.emoji === emoji ? 'bg-blue-100 ring-2 ring-blue-500' : ''
+                    className={`text-xl p-2 rounded-md hover:bg-blue-100 transition-all duration-200 hover:scale-110 ${
+                      newTemplate.emoji === emoji ? 'bg-blue-200 ring-2 ring-blue-500 scale-110' : 'bg-white'
                     }`}
                     onClick={() => setNewTemplate(prev => ({ ...prev, emoji }))}
                   >
@@ -604,13 +622,16 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
                   </button>
                 ))}
               </div>
-              <Input
-                value={newTemplate.emoji}
-                onChange={(e) => setNewTemplate(prev => ({ ...prev, emoji: e.target.value }))}
-                placeholder="🍔"
-                maxLength={2}
-                className="mt-2"
-              />
+              <div className="mt-2">
+                <Input
+                  value={newTemplate.emoji}
+                  onChange={(e) => setNewTemplate(prev => ({ ...prev, emoji: e.target.value }))}
+                  placeholder="🍔 atau ketik emoji custom"
+                  maxLength={4}
+                  className="text-center text-xl"
+                />
+                <p className="text-xs text-gray-500 mt-1">Pilih dari daftar atau ketik emoji sendiri</p>
+              </div>
             </div>
             
             <div>
