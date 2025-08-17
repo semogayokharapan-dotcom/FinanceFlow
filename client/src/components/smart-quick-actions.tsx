@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -5,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { ChevronDown, ChevronUp, Edit3, Check, X, Calculator } from "lucide-react";
+import { ChevronDown, ChevronUp, Edit3, Check, X, Calculator, Plus, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { InsertTransaction } from "@shared/schema";
 
 interface SmartQuickActionsProps {
@@ -29,6 +32,7 @@ interface QuickActionTemplate {
   type: 'income' | 'expense';
   description: string;
   isEditable?: boolean;
+  isCustom?: boolean;
 }
 
 export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
@@ -36,9 +40,41 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState<string>("");
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<QuickActionTemplate | null>(null);
+  const [customTemplates, setCustomTemplates] = useState<QuickActionTemplate[]>([]);
+  
+  // Form state for new template
+  const [newTemplate, setNewTemplate] = useState({
+    emoji: '📦',
+    name: '',
+    amount: '',
+    category: 'other',
+    type: 'expense' as 'income' | 'expense',
+    description: ''
+  });
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Load custom templates from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem(`custom-templates-${userId}`);
+    if (saved) {
+      try {
+        setCustomTemplates(JSON.parse(saved));
+      } catch (error) {
+        console.error('Error loading custom templates:', error);
+      }
+    }
+  }, [userId]);
+
+  // Save custom templates to localStorage
+  const saveCustomTemplates = (templates: QuickActionTemplate[]) => {
+    setCustomTemplates(templates);
+    localStorage.setItem(`custom-templates-${userId}`, JSON.stringify(templates));
+  };
 
   // Fetch user's category averages
   const { data: averages } = useQuery({
@@ -120,7 +156,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
   // Smart templates that learn from user behavior
   const getSmartTemplates = (): QuickActionTemplate[] => {
     if (!averages || averages.length === 0) {
-      return getDefaultTemplates();
+      return [...getDefaultTemplates(), ...customTemplates];
     }
 
     const templates: QuickActionTemplate[] = [];
@@ -144,7 +180,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
     const sortedAverages = averages
       .filter(avg => avg.transactionCount >= 2) // Only show categories used at least twice
       .sort((a, b) => b.transactionCount - a.transactionCount)
-      .slice(0, 8); // Limit to 8 most used
+      .slice(0, 6); // Limit to 6 most used
 
     sortedAverages.forEach(avg => {
       const info = categoryInfo[avg.category] || { emoji: '📦', name: avg.category };
@@ -160,6 +196,9 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
       });
     });
 
+    // Add custom templates
+    templates.push(...customTemplates);
+
     // If not enough smart templates, add some defaults
     if (templates.length < 4) {
       const defaults = getDefaultTemplates();
@@ -170,7 +209,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
       });
     }
 
-    return templates.slice(0, 8);
+    return templates.slice(0, 10);
   };
 
   const templates = getSmartTemplates();
@@ -186,6 +225,12 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
       description: template.description,
       date: new Date(),
     });
+  };
+
+  const handleTemplateClick = (template: QuickActionTemplate) => {
+    setSelectedTemplate(template);
+    setEditAmount(template.amount.toString());
+    setShowEditDialog(true);
   };
 
   const handleEditStart = (template: QuickActionTemplate) => {
@@ -224,6 +269,75 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
     setEditAmount("");
   };
 
+  const handleAddTemplate = () => {
+    if (!newTemplate.name || !newTemplate.amount) {
+      toast({
+        title: "❌ Error",
+        description: "Nama dan jumlah harus diisi",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const template: QuickActionTemplate = {
+      id: `custom_${Date.now()}`,
+      emoji: newTemplate.emoji,
+      name: newTemplate.name,
+      amount: parseInt(newTemplate.amount),
+      category: newTemplate.category,
+      type: newTemplate.type,
+      description: newTemplate.description || newTemplate.name,
+      isEditable: true,
+      isCustom: true
+    };
+
+    const updatedTemplates = [...customTemplates, template];
+    saveCustomTemplates(updatedTemplates);
+
+    setNewTemplate({
+      emoji: '📦',
+      name: '',
+      amount: '',
+      category: 'other',
+      type: 'expense',
+      description: ''
+    });
+    setShowAddDialog(false);
+
+    toast({
+      title: "✅ Berhasil!",
+      description: "Template baru telah ditambahkan",
+    });
+  };
+
+  const handleDeleteTemplate = () => {
+    if (selectedTemplate?.isCustom) {
+      const updatedTemplates = customTemplates.filter(t => t.id !== selectedTemplate.id);
+      saveCustomTemplates(updatedTemplates);
+      
+      toast({
+        title: "✅ Berhasil!",
+        description: "Template telah dihapus",
+      });
+    }
+    setShowDeleteDialog(false);
+    setSelectedTemplate(null);
+  };
+
+  const categoryOptions = [
+    { value: 'food', label: 'Makanan & Minuman' },
+    { value: 'transport', label: 'Transport' },
+    { value: 'shopping', label: 'Belanja' },
+    { value: 'entertainment', label: 'Hiburan' },
+    { value: 'bills', label: 'Tagihan' },
+    { value: 'other', label: 'Lain-lain' },
+    { value: 'salary', label: 'Gaji' },
+    { value: 'freelance', label: 'Freelance' },
+    { value: 'business', label: 'Bisnis' },
+    { value: 'investment', label: 'Investasi' },
+    { value: 'bonus', label: 'Bonus' },
+  ];
+
   return (
     <Card className="shadow-sm border-l-4 border-l-blue-500">
       <CardHeader 
@@ -254,6 +368,19 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
       
       {isExpanded && (
         <CardContent className="pt-0">
+          {/* Add Template Button */}
+          <div className="mb-4 flex justify-end">
+            <Button
+              onClick={() => setShowAddDialog(true)}
+              size="sm"
+              variant="outline"
+              className="text-blue-600 border-blue-300 hover:bg-blue-50"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Tambah Template
+            </Button>
+          </div>
+
           {/* Expense Templates */}
           {expenseTemplates.length > 0 && (
             <div className="mb-4">
@@ -297,18 +424,35 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
                         </div>
                       </div>
                     ) : (
-                      <div className="relative p-4 h-auto w-full flex flex-col items-center space-y-2 border border-gray-200 rounded-lg hover:bg-red-50 transition-colors hover:border-red-300 group cursor-pointer">
-                        {template.isEditable && (
-                          <span
-                            className="absolute top-1 right-1 h-6 w-6 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-gray-100 rounded flex items-center justify-center z-10"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditStart(template);
-                            }}
-                          >
-                            <Edit3 className="h-3 w-3" />
-                          </span>
-                        )}
+                      <div 
+                        className="relative p-4 h-auto w-full flex flex-col items-center space-y-2 border border-gray-200 rounded-lg hover:bg-red-50 transition-colors hover:border-red-300 group cursor-pointer"
+                        onClick={() => handleTemplateClick(template)}
+                      >
+                        <div className="absolute top-1 right-1 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {template.isEditable && (
+                            <span
+                              className="h-6 w-6 p-1 cursor-pointer hover:bg-gray-100 rounded flex items-center justify-center z-10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditStart(template);
+                              }}
+                            >
+                              <Edit3 className="h-3 w-3" />
+                            </span>
+                          )}
+                          {template.isCustom && (
+                            <span
+                              className="h-6 w-6 p-1 cursor-pointer hover:bg-red-100 rounded flex items-center justify-center z-10 text-red-600"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedTemplate(template);
+                                setShowDeleteDialog(true);
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </span>
+                          )}
+                        </div>
                         <div className="text-3xl">{template.emoji}</div>
                         <div className="text-sm font-medium text-gray-800">{template.name}</div>
                         <div className="text-xs text-red-600">
@@ -367,7 +511,10 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
                         </div>
                       </div>
                     ) : (
-                      <div className="relative p-4 h-auto w-full flex items-center justify-between border border-gray-200 rounded-lg hover:bg-green-50 transition-colors hover:border-green-300 group cursor-pointer">
+                      <div 
+                        className="relative p-4 h-auto w-full flex items-center justify-between border border-gray-200 rounded-lg hover:bg-green-50 transition-colors hover:border-green-300 group cursor-pointer"
+                        onClick={() => handleTemplateClick(template)}
+                      >
                         <div className="flex items-center space-x-3">
                           <span className="text-3xl">{template.emoji}</span>
                           <div className="text-left">
@@ -379,17 +526,31 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
                           <div className="text-sm font-bold text-green-600">
                             +Rp {template.amount.toLocaleString('id-ID')}
                           </div>
-                          {template.isEditable && (
-                            <span
-                              className="h-6 w-6 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-gray-100 rounded flex items-center justify-center z-10"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditStart(template);
-                              }}
-                            >
-                              <Edit3 className="h-3 w-3" />
-                            </span>
-                          )}
+                          <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {template.isEditable && (
+                              <span
+                                className="h-6 w-6 p-1 cursor-pointer hover:bg-gray-100 rounded flex items-center justify-center z-10"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditStart(template);
+                                }}
+                              >
+                                <Edit3 className="h-3 w-3" />
+                              </span>
+                            )}
+                            {template.isCustom && (
+                              <span
+                                className="h-6 w-6 p-1 cursor-pointer hover:bg-red-100 rounded flex items-center justify-center z-10 text-red-600"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedTemplate(template);
+                                  setShowDeleteDialog(true);
+                                }}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -401,13 +562,13 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
           
           <div className="mt-4 p-3 bg-blue-50 rounded-xl">
             <div className="text-xs text-blue-700 text-center">
-              💡 Aksi cepat belajar dari kebiasaan transaksi Anda. Klik ikon edit (✏️) untuk melakukan transaksi atau mengubah nominal.
+              💡 Aksi cepat belajar dari kebiasaan transaksi Anda. Klik template untuk menjalankan transaksi, atau gunakan ikon edit (✏️) untuk mengubah nominal. Ikon sampah (🗑️) untuk menghapus template custom.
             </div>
           </div>
         </CardContent>
       )}
 
-      {/* Alert Dialog untuk konfirmasi edit */}
+      {/* Alert Dialog untuk konfirmasi transaksi */}
       <AlertDialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -445,6 +606,114 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
               <Calculator className="h-4 w-4 mr-2" />
               Edit Nominal Dulu
             </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog untuk menambah template baru */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tambah Template Baru</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Emoji</label>
+              <Input
+                value={newTemplate.emoji}
+                onChange={(e) => setNewTemplate(prev => ({ ...prev, emoji: e.target.value }))}
+                placeholder="🍔"
+                maxLength={2}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Nama</label>
+              <Input
+                value={newTemplate.name}
+                onChange={(e) => setNewTemplate(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Nama template"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Jumlah</label>
+              <Input
+                type="number"
+                value={newTemplate.amount}
+                onChange={(e) => setNewTemplate(prev => ({ ...prev, amount: e.target.value }))}
+                placeholder="25000"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Tipe</label>
+              <Select 
+                value={newTemplate.type} 
+                onValueChange={(value: 'income' | 'expense') => setNewTemplate(prev => ({ ...prev, type: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="expense">Pengeluaran</SelectItem>
+                  <SelectItem value="income">Pemasukan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Kategori</label>
+              <Select 
+                value={newTemplate.category} 
+                onValueChange={(value) => setNewTemplate(prev => ({ ...prev, category: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {categoryOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Deskripsi (opsional)</label>
+              <Input
+                value={newTemplate.description}
+                onChange={(e) => setNewTemplate(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Deskripsi template"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+              Batal
+            </Button>
+            <Button onClick={handleAddTemplate}>
+              Tambah Template
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog konfirmasi hapus */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Template</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus template "{selectedTemplate?.name}"? 
+              Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteTemplate}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Hapus
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
