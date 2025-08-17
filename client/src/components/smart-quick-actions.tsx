@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -10,8 +11,6 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { InsertTransaction } from "@shared/schema";
-import { Label } from "@/components/ui/label";
-
 
 interface SmartQuickActionsProps {
   userId: string;
@@ -45,16 +44,25 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<QuickActionTemplate | null>(null);
   const [customTemplates, setCustomTemplates] = useState<QuickActionTemplate[]>([]);
-  const [editingTemplate, setEditingTemplate] = useState<any>(null);
-
+  
   // Attractive emoji options for user selection
   const emojiOptions = [
-    '🍕', '🍔', '🍜', '🥗', '🍱', '🍰', '☕', '🧋', // Food
-    '🚗', '🚌', '🚇', '🚊', '🚖', '🛵', '🚲', '⛽', // Transport
-    '🛍️', '👕', '👟', '🎮', '📱', '💻', '📚', '🎁', // Shopping
-    '🎬', '🎵', '🎪', '🎨', '🏋️', '⚽', '🎯', '🎳', // Entertainment
-    '💡', '🏠', '📞', '💧', '🔥', '📺', '🌐', '💳', // Bills
-    '💰', '💼', '📊', '🏆', '🎓', '💎', '🚀', '⭐'  // Income/Other
+    // Food & Drinks
+    '🍔', '🍕', '🌮', '🍜', '🍱', '🥗', '🍰', '🧁', '☕', '🥤', '🍦', '🥙', '🍣', '🥪', '🍟', '🌭', '🥐', '🍪', '🧀', '🥩',
+    // Transport
+    '🚗', '🚌', '🚊', '🚲', '🛵', '✈️', '🚕', '🚇', '🚢', '🚁', '🛺', '🛻', '🚜', '🏍️', '🚠', '🚖', '🚒', '🚑', '🚓', '🚐',
+    // Shopping & Items
+    '🛍️', '👕', '👟', '💄', '📱', '💻', '🎮', '📚', '🏠', '⚡', '🛒', '💳', '🎒', '👜', '💍', '⌚', '🕶️', '🧳', '👗', '👠',
+    // Entertainment & Activities
+    '🎬', '🎵', '🎨', '🎪', '🎯', '🎲', '🎸', '🎹', '🎺', '🎤', '🎭', '🎫', '🎳', '🎮', '🎲', '🎯', '🎨', '🎪', '🎡', '🎢',
+    // Work & Money
+    '💼', '💰', '📈', '🏆', '🎁', '💎', '🔧', '🏢', '💡', '⭐', '📊', '💸', '💵', '💴', '💶', '💷', '🏦', '📝', '📋', '💼',
+    // Special & Fun
+    '❤️', '🌟', '🎯', '🔥', '💪', '🚀', '🌈', '🎊', '🎉', '✨', '💫', '🌺', '🌸', '🌼', '🌻', '🌹', '💝', '🎀', '🦄', '🍀',
+    // Health & Beauty
+    '💊', '🏥', '💅', '💆', '💇', '🧴', '🧼', '🪥', '🧽', '🚿', '🛁', '🧖', '💆‍♀️', '💇‍♀️', '🧘', '🏃', '⛹️', '🤸', '🧗', '🏊',
+    // Education & Skills
+    '📖', '📝', '🎓', '📚', '✏️', '🖊️', '📐', '📏', '🖇️', '📎', '📌', '📍', '🔍', '💡', '🧠', '📊', '📈', '📉', '📋', '📁'
   ];
 
   // Form state for new template
@@ -66,7 +74,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
     type: 'expense' as 'income' | 'expense',
     description: ''
   });
-
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -108,7 +116,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
       queryClient.invalidateQueries({ queryKey: ['/api/analytics/balance', userId] });
       queryClient.invalidateQueries({ queryKey: ['/api/analytics/categories', userId] });
       queryClient.invalidateQueries({ queryKey: ['/api/analytics/averages', userId] });
-
+      
       toast({
         title: "✅ Transaksi Cepat Berhasil!",
         description: "Transaksi telah ditambahkan",
@@ -180,7 +188,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
     }
 
     const templates: QuickActionTemplate[] = [];
-
+    
     // Map of category to emoji and display name (for UI only, not stored in database)
     const categoryInfo: Record<string, { emoji: string; displayName: string }> = {
       food: { emoji: '🍔', displayName: 'Makanan' },
@@ -329,16 +337,21 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
     });
   };
 
-  const handleDeleteTemplate = (index: number) => {
-    const updatedTemplates = customTemplates.filter((_: any, i: number) => i !== index);
-    saveCustomTemplates(updatedTemplates);
-
-    toast({
-      title: "✅ Berhasil!",
-      description: "Template telah dihapus",
-    });
-    setSelectedTemplate(null); // Clear selected template after deletion
+  const handleDeleteTemplate = () => {
+    if (selectedTemplate?.isCustom) {
+      const updatedTemplates = customTemplates.filter(t => t.id !== selectedTemplate.id);
+      saveCustomTemplates(updatedTemplates);
+      
+      toast({
+        title: "✅ Berhasil!",
+        description: "Template telah dihapus",
+      });
+    }
+    setShowDeleteDialog(false);
+    setSelectedTemplate(null);
   };
+
+  
 
   const categoryOptions = [
     { value: 'food', label: 'Makanan & Minuman' },
@@ -381,24 +394,13 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
           </div>
         </div>
       </CardHeader>
-
+      
       {isExpanded && (
         <CardContent className="pt-0">
           {/* Add Template Button */}
           <div className="mb-4 flex justify-end">
             <Button
-              onClick={() => {
-                setNewTemplate({ // Reset form on open
-                  emoji: '🍔',
-                  name: '',
-                  amount: '',
-                  category: 'other',
-                  type: 'expense',
-                  description: ''
-                });
-                setEditingTemplate(null); // Ensure no template is marked for editing
-                setShowAddDialog(true);
-              }}
+              onClick={() => setShowAddDialog(true)}
               size="sm"
               variant="outline"
               className="text-blue-600 border-blue-300 hover:bg-blue-50"
@@ -416,7 +418,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
               </h6>
               <div className="grid grid-cols-2 gap-3">
                 {expenseTemplates.map((template) => (
-                  <div key={template.id}>
+                  <div key={template.id} className="relative">
                     {editingId === template.id ? (
                       <div className="p-3 border border-blue-300 rounded-xl bg-blue-50">
                         <div className="text-center mb-2">
@@ -506,11 +508,8 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
                       <div className="p-3 border border-green-300 rounded-xl bg-green-50">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center space-x-3">
-                            <span className="text-3xl">{template.emoji}</span>
-                            <div className="text-left">
-                              <div className="text-sm font-medium text-gray-800">{template.description}</div>
-                              <div className="text-xs text-gray-500">Kategori: {template.category}</div>
-                            </div>
+                            <span className="text-2xl">{template.emoji}</span>
+                            <span className="font-medium">{template.description}</span>
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -589,7 +588,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
               </div>
             </div>
           )}
-
+          
           <div className="mt-4 p-3 bg-blue-50 rounded-xl">
             <div className="text-xs text-blue-700 text-center">
               💡 Aksi cepat belajar dari kebiasaan transaksi Anda. Klik template untuk menjalankan transaksi, atau gunakan ikon edit (✏️) untuk mengubah nominal. Ikon sampah (🗑️) untuk menghapus template custom.
@@ -598,29 +597,29 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
         </CardContent>
       )}
 
+      
 
-
-      {/* Dialog untuk menambah/mengedit template baru */}
+      {/* Dialog untuk menambah template baru */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingTemplate ? 'Edit Template' : 'Tambah Template Baru'}</DialogTitle>
+            <DialogTitle>Tambah Template Baru</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>🎨 Emoji</Label>
-              <div className="grid grid-cols-8 gap-2 p-3 bg-gray-50 rounded-lg max-h-32 overflow-y-auto">
+              <label className="text-sm font-medium">Emoji</label>
+              <div className="grid grid-cols-8 gap-1 p-3 border rounded-md max-h-40 overflow-y-auto bg-gray-50">
                 {emojiOptions.map((emoji, index) => (
-                  <Button
+                  <button
                     key={index}
                     type="button"
-                    variant={newTemplate.emoji === emoji ? "default" : "ghost"}
-                    size="sm"
+                    className={`text-xl p-2 rounded-md hover:bg-blue-100 transition-all duration-200 hover:scale-110 ${
+                      newTemplate.emoji === emoji ? 'bg-blue-200 ring-2 ring-blue-500 scale-110' : 'bg-white'
+                    }`}
                     onClick={() => setNewTemplate(prev => ({ ...prev, emoji }))}
-                    className="p-1 h-8 w-8 text-lg"
                   >
                     {emoji}
-                  </Button>
+                  </button>
                 ))}
               </div>
               <div className="mt-2">
@@ -634,9 +633,9 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
                 <p className="text-xs text-gray-500 mt-1">Pilih dari daftar atau ketik emoji sendiri</p>
               </div>
             </div>
-
+            
             <div>
-              <Label>Jumlah</Label>
+              <label className="text-sm font-medium">Jumlah</label>
               <Input
                 type="number"
                 value={newTemplate.amount}
@@ -645,7 +644,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
               />
             </div>
             <div>
-              <Label>Tipe</Label>
+              <label className="text-sm font-medium">Tipe</label>
               <Select 
                 value={newTemplate.type} 
                 onValueChange={(value: 'income' | 'expense') => setNewTemplate(prev => ({ ...prev, type: value }))}
@@ -660,7 +659,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
               </Select>
             </div>
             <div>
-              <Label>Kategori</Label>
+              <label className="text-sm font-medium">Kategori</label>
               <Select 
                 value={newTemplate.category} 
                 onValueChange={(value) => setNewTemplate(prev => ({ ...prev, category: value }))}
@@ -678,7 +677,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
               </Select>
             </div>
             <div>
-              <Label>Deskripsi (opsional)</label>
+              <label className="text-sm font-medium">Deskripsi (opsional)</label>
               <Input
                 value={newTemplate.description}
                 onChange={(e) => setNewTemplate(prev => ({ ...prev, description: e.target.value }))}
@@ -687,28 +686,11 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setShowAddDialog(false);
-              setEditingTemplate(null); // Clear editing state on close
-            }}>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
               Batal
             </Button>
-            <Button onClick={() => {
-              if (editingTemplate) {
-                // Logic for editing existing template
-                const updatedCustomTemplates = customTemplates.map(t => 
-                  t.id === editingTemplate.id ? { ...t, ...newTemplate, amount: parseInt(newTemplate.amount) } : t
-                );
-                saveCustomTemplates(updatedCustomTemplates);
-                toast({ title: "✅ Template Diperbarui", description: "Template berhasil diperbarui" });
-              } else {
-                // Logic for adding new template
-                handleAddTemplate();
-              }
-              setShowAddDialog(false);
-              setEditingTemplate(null); // Clear editing state after save/add
-            }}>
-              {editingTemplate ? 'Simpan Perubahan' : 'Tambah Template'}
+            <Button onClick={handleAddTemplate}>
+              Tambah Template
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -727,12 +709,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={() => {
-                if (selectedTemplate && selectedTemplate.isCustom) {
-                  handleDeleteTemplate(customTemplates.findIndex(t => t.id === selectedTemplate.id));
-                }
-                setShowDeleteDialog(false);
-              }}
+              onClick={handleDeleteTemplate}
               className="bg-red-600 hover:bg-red-700"
             >
               Hapus
