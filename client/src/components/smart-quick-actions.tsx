@@ -45,9 +45,19 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<QuickActionTemplate | null>(null);
   const [customTemplates, setCustomTemplates] = useState<QuickActionTemplate[]>([]);
   
+  // Attractive emoji options for user selection
+  const emojiOptions = [
+    '🍔', '🍕', '🌮', '🍜', '🍱', '🥗', '🍰', '🧁', '☕', '🥤',
+    '🚗', '🚌', '🚊', '🚲', '🛵', '✈️', '🚕', '🚇', '🚢', '🚁',
+    '🛍️', '👕', '👟', '💄', '📱', '💻', '🎮', '📚', '🏠', '⚡',
+    '🎬', '🎵', '🎨', '🎪', '🎯', '🎲', '🎸', '🎹', '🎺', '🎤',
+    '💼', '💰', '📈', '🏆', '🎁', '💎', '🔧', '🏢', '💡', '⭐',
+    '❤️', '🌟', '🎯', '🔥', '💪', '🚀', '🌈', '🎊', '🎉', '✨'
+  ];
+
   // Form state for new template
   const [newTemplate, setNewTemplate] = useState({
-    emoji: '📦',
+    emoji: '🍔',
     name: '',
     amount: '',
     category: 'other',
@@ -111,7 +121,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
     },
   });
 
-  // Create default templates
+  // Create default templates - removed name field to sync with database
   const getDefaultTemplates = (): QuickActionTemplate[] => [
     // Default expense templates
     { 
@@ -121,7 +131,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
       amount: 25000, 
       category: 'food', 
       type: 'expense',
-      description: 'Makan' 
+      description: 'Makanan' 
     },
     { 
       id: 'transport', 
@@ -130,7 +140,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
       amount: 15000, 
       category: 'transport', 
       type: 'expense',
-      description: 'Transport' 
+      description: 'Transportasi' 
     },
     { 
       id: 'coffee', 
@@ -139,7 +149,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
       amount: 12000, 
       category: 'food', 
       type: 'expense',
-      description: 'Kopi' 
+      description: 'Minuman' 
     },
     // Default income templates
     { 
@@ -161,19 +171,19 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
 
     const templates: QuickActionTemplate[] = [];
     
-    // Map of category to emoji and name
-    const categoryInfo: Record<string, { emoji: string; name: string }> = {
-      food: { emoji: '🍔', name: 'Makan' },
-      transport: { emoji: '🚗', name: 'Transport' },
-      shopping: { emoji: '🛍️', name: 'Belanja' },
-      entertainment: { emoji: '🎬', name: 'Hiburan' },
-      bills: { emoji: '📱', name: 'Tagihan' },
-      other: { emoji: '📦', name: 'Lain-lain' },
-      salary: { emoji: '💼', name: 'Gaji' },
-      freelance: { emoji: '💻', name: 'Freelance' },
-      business: { emoji: '🏢', name: 'Bisnis' },
-      investment: { emoji: '📈', name: 'Investasi' },
-      bonus: { emoji: '🎁', name: 'Bonus' },
+    // Map of category to emoji and display name (for UI only, not stored in database)
+    const categoryInfo: Record<string, { emoji: string; displayName: string }> = {
+      food: { emoji: '🍔', displayName: 'Makanan' },
+      transport: { emoji: '🚗', displayName: 'Transport' },
+      shopping: { emoji: '🛍️', displayName: 'Belanja' },
+      entertainment: { emoji: '🎬', displayName: 'Hiburan' },
+      bills: { emoji: '📱', displayName: 'Tagihan' },
+      other: { emoji: '📦', displayName: 'Lainnya' },
+      salary: { emoji: '💼', displayName: 'Gaji' },
+      freelance: { emoji: '💻', displayName: 'Freelance' },
+      business: { emoji: '🏢', displayName: 'Bisnis' },
+      investment: { emoji: '📈', displayName: 'Investasi' },
+      bonus: { emoji: '🎁', displayName: 'Bonus' },
     };
 
     // Create templates from user's most used categories
@@ -183,15 +193,15 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
       .slice(0, 6); // Limit to 6 most used
 
     sortedAverages.forEach(avg => {
-      const info = categoryInfo[avg.category] || { emoji: '📦', name: avg.category };
+      const info = categoryInfo[avg.category] || { emoji: '📦', displayName: avg.category };
       templates.push({
-        id: `${avg.type}_${avg.category}`,
+        id: `smart_${avg.type}_${avg.category}`,
         emoji: info.emoji,
-        name: info.name,
+        name: info.displayName,
         amount: avg.averageAmount,
         category: avg.category,
         type: avg.type as 'income' | 'expense',
-        description: `${info.name} (${avg.transactionCount}x)`,
+        description: `${info.displayName} (${avg.transactionCount}x)`,
         isEditable: true
       });
     });
@@ -324,6 +334,15 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
     setSelectedTemplate(null);
   };
 
+  const handleClearAllData = () => {
+    setCustomTemplates([]);
+    localStorage.removeItem(`custom-templates-${userId}`);
+    toast({
+      title: "✅ Berhasil!",
+      description: "Semua data template custom telah dihapus",
+    });
+  };
+
   const categoryOptions = [
     { value: 'food', label: 'Makanan & Minuman' },
     { value: 'transport', label: 'Transport' },
@@ -369,7 +388,17 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
       {isExpanded && (
         <CardContent className="pt-0">
           {/* Add Template Button */}
-          <div className="mb-4 flex justify-end">
+          <div className="mb-4 flex justify-between">
+            <Button
+              onClick={handleClearAllData}
+              size="sm"
+              variant="outline"
+              className="text-red-600 border-red-300 hover:bg-red-50"
+              disabled={customTemplates.length === 0}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Hapus Semua Data
+            </Button>
             <Button
               onClick={() => setShowAddDialog(true)}
               size="sm"
@@ -619,11 +648,26 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium">Emoji</label>
+              <div className="grid grid-cols-10 gap-2 p-3 border rounded-md max-h-32 overflow-y-auto">
+                {emojiOptions.map((emoji, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    className={`text-xl p-2 rounded hover:bg-gray-100 transition-colors ${
+                      newTemplate.emoji === emoji ? 'bg-blue-100 ring-2 ring-blue-500' : ''
+                    }`}
+                    onClick={() => setNewTemplate(prev => ({ ...prev, emoji }))}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
               <Input
                 value={newTemplate.emoji}
                 onChange={(e) => setNewTemplate(prev => ({ ...prev, emoji: e.target.value }))}
                 placeholder="🍔"
                 maxLength={2}
+                className="mt-2"
               />
             </div>
             <div>
