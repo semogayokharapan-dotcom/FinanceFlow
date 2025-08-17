@@ -121,13 +121,13 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
     },
   });
 
-  // Create default templates - removed name field to sync with database
+  // Create default templates - no name field, only category for database sync
   const getDefaultTemplates = (): QuickActionTemplate[] => [
     // Default expense templates
     { 
       id: 'food', 
       emoji: '🍔', 
-      name: 'Makan', 
+      name: '', 
       amount: 25000, 
       category: 'food', 
       type: 'expense',
@@ -136,7 +136,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
     { 
       id: 'transport', 
       emoji: '🚗', 
-      name: 'Transport', 
+      name: '', 
       amount: 15000, 
       category: 'transport', 
       type: 'expense',
@@ -145,7 +145,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
     { 
       id: 'coffee', 
       emoji: '☕', 
-      name: 'Kopi', 
+      name: '', 
       amount: 12000, 
       category: 'food', 
       type: 'expense',
@@ -155,7 +155,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
     { 
       id: 'salary', 
       emoji: '💼', 
-      name: 'Gaji', 
+      name: '', 
       amount: 5000000, 
       category: 'salary', 
       type: 'income',
@@ -197,7 +197,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
       templates.push({
         id: `smart_${avg.type}_${avg.category}`,
         emoji: info.emoji,
-        name: info.displayName,
+        name: '',
         amount: avg.averageAmount,
         category: avg.category,
         type: avg.type as 'income' | 'expense',
@@ -238,9 +238,8 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
   };
 
   const handleTemplateClick = (template: QuickActionTemplate) => {
-    setSelectedTemplate(template);
-    setEditAmount(template.amount.toString());
-    setShowEditDialog(true);
+    // Direct transaction without confirmation for quick action
+    handleQuickTransaction(template);
   };
 
   const handleEditStart = (template: QuickActionTemplate) => {
@@ -280,10 +279,10 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
   };
 
   const handleAddTemplate = () => {
-    if (!newTemplate.name || !newTemplate.amount) {
+    if (!newTemplate.amount) {
       toast({
         title: "❌ Error",
-        description: "Nama dan jumlah harus diisi",
+        description: "Jumlah harus diisi",
         variant: "destructive",
       });
       return;
@@ -292,11 +291,11 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
     const template: QuickActionTemplate = {
       id: `custom_${Date.now()}`,
       emoji: newTemplate.emoji,
-      name: newTemplate.name,
+      name: '',
       amount: parseInt(newTemplate.amount),
       category: newTemplate.category,
       type: newTemplate.type,
-      description: newTemplate.description || newTemplate.name,
+      description: newTemplate.description || newTemplate.category,
       isEditable: true,
       isCustom: true
     };
@@ -305,7 +304,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
     saveCustomTemplates(updatedTemplates);
 
     setNewTemplate({
-      emoji: '📦',
+      emoji: '🍔',
       name: '',
       amount: '',
       category: 'other',
@@ -334,14 +333,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
     setSelectedTemplate(null);
   };
 
-  const handleClearAllData = () => {
-    setCustomTemplates([]);
-    localStorage.removeItem(`custom-templates-${userId}`);
-    toast({
-      title: "✅ Berhasil!",
-      description: "Semua data template custom telah dihapus",
-    });
-  };
+  
 
   const categoryOptions = [
     { value: 'food', label: 'Makanan & Minuman' },
@@ -388,17 +380,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
       {isExpanded && (
         <CardContent className="pt-0">
           {/* Add Template Button */}
-          <div className="mb-4 flex justify-between">
-            <Button
-              onClick={handleClearAllData}
-              size="sm"
-              variant="outline"
-              className="text-red-600 border-red-300 hover:bg-red-50"
-              disabled={customTemplates.length === 0}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Hapus Semua Data
-            </Button>
+          <div className="mb-4 flex justify-end">
             <Button
               onClick={() => setShowAddDialog(true)}
               size="sm"
@@ -423,7 +405,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
                       <div className="p-3 border border-blue-300 rounded-xl bg-blue-50">
                         <div className="text-center mb-2">
                           <div className="text-2xl mb-1">{template.emoji}</div>
-                          <div className="text-sm font-medium">{template.name}</div>
+                          <div className="text-sm font-medium">{template.description}</div>
                         </div>
                         <div className="flex items-center space-x-1">
                           <Input
@@ -483,7 +465,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
                           )}
                         </div>
                         <div className="text-3xl">{template.emoji}</div>
-                        <div className="text-sm font-medium text-gray-800">{template.name}</div>
+                        <div className="text-sm font-medium text-gray-800">{template.description}</div>
                         <div className="text-xs text-red-600">
                           -Rp {template.amount.toLocaleString('id-ID')}
                         </div>
@@ -509,7 +491,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center space-x-3">
                             <span className="text-2xl">{template.emoji}</span>
-                            <span className="font-medium">{template.name}</span>
+                            <span className="font-medium">{template.description}</span>
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -547,8 +529,8 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
                         <div className="flex items-center space-x-3">
                           <span className="text-3xl">{template.emoji}</span>
                           <div className="text-left">
-                            <div className="text-sm font-medium text-gray-800">{template.name}</div>
-                            <div className="text-xs text-gray-500">{template.description}</div>
+                            <div className="text-sm font-medium text-gray-800">{template.description}</div>
+                            <div className="text-xs text-gray-500">Kategori: {template.category}</div>
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -597,47 +579,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
         </CardContent>
       )}
 
-      {/* Alert Dialog untuk konfirmasi transaksi */}
-      <AlertDialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center space-x-2">
-              <span className="text-2xl">{selectedTemplate?.emoji}</span>
-              <span>Pilih Aksi untuk {selectedTemplate?.name}</span>
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Nominal saat ini: <span className="font-semibold text-blue-600">
-                Rp {selectedTemplate?.amount.toLocaleString('id-ID')}
-              </span>
-              <br />
-              Apa yang ingin Anda lakukan?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogCancel asChild>
-              <Button variant="outline" onClick={() => setShowEditDialog(false)}>
-                Batal
-              </Button>
-            </AlertDialogCancel>
-            <Button 
-              variant="default" 
-              onClick={handleDirectTransaction}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <Check className="h-4 w-4 mr-2" />
-              Langsung Simpan
-            </Button>
-            <Button 
-              variant="secondary" 
-              onClick={handleEditTransaction}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Calculator className="h-4 w-4 mr-2" />
-              Edit Nominal Dulu
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      
 
       {/* Dialog untuk menambah template baru */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
@@ -670,14 +612,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
                 className="mt-2"
               />
             </div>
-            <div>
-              <label className="text-sm font-medium">Nama</label>
-              <Input
-                value={newTemplate.name}
-                onChange={(e) => setNewTemplate(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Nama template"
-              />
-            </div>
+            
             <div>
               <label className="text-sm font-medium">Jumlah</label>
               <Input
@@ -746,7 +681,7 @@ export default function SmartQuickActions({ userId }: SmartQuickActionsProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Template</AlertDialogTitle>
             <AlertDialogDescription>
-              Apakah Anda yakin ingin menghapus template "{selectedTemplate?.name}"? 
+              Apakah Anda yakin ingin menghapus template "{selectedTemplate?.description}"? 
               Tindakan ini tidak dapat dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
