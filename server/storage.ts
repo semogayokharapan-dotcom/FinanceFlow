@@ -1,17 +1,18 @@
 import { type User, type InsertUser, type Transaction, type InsertTransaction } from "@shared/schema";
 import { nanoid } from "nanoid";
+import { users, transactions, contacts, chatMessages, globalChat } from "./db";
 
 export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
   getUserByPrivateKey(privateKey: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+
   // Transaction methods
   getUserTransactions(userId: string, limit?: number): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction & { userId: string }): Promise<Transaction>;
   deleteTransaction(id: string, userId: string): Promise<void>;
-  
+
   // Analytics methods
   getUserBalance(userId: string): Promise<{ income: number; expense: number; balance: number }>;
   getUserTransactionsByDateRange(userId: string, startDate: Date, endDate: Date): Promise<Transaction[]>;
@@ -68,15 +69,15 @@ export class MemoryStorage implements IStorage {
 
   async getUserBalance(userId: string): Promise<{ income: number; expense: number; balance: number }> {
     const userTransactions = this.transactions.filter(t => t.userId === userId);
-    
+
     const income = userTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + Number(t.amount), 0);
-    
+
     const expense = userTransactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + Number(t.amount), 0);
-    
+
     const balance = income - expense;
 
     return { income, expense, balance };
@@ -86,8 +87,8 @@ export class MemoryStorage implements IStorage {
     return this.transactions
       .filter(t => {
         const transactionDate = new Date(t.date);
-        return t.userId === userId && 
-               transactionDate >= startDate && 
+        return t.userId === userId &&
+               transactionDate >= startDate &&
                transactionDate <= endDate;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -104,7 +105,7 @@ export class MemoryStorage implements IStorage {
     );
 
     const categoryStats: Record<string, { total: number; count: number }> = {};
-    
+
     expenseTransactions.forEach(transaction => {
       const category = transaction.category;
       if (!categoryStats[category]) {
@@ -124,33 +125,33 @@ export class MemoryStorage implements IStorage {
   async getWeeklyStats(userId: string, weekCount: number = 4): Promise<Array<{ week: string; income: number; expense: number; balance: number; startDate: Date; endDate: Date }>> {
     const stats = [];
     const now = new Date();
-    
+
     for (let i = 0; i < weekCount; i++) {
       // Calculate start and end of week (Monday to Sunday)
       const weekStart = new Date(now);
       weekStart.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1) - (i * 7));
       weekStart.setHours(0, 0, 0, 0);
-      
+
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 6);
       weekEnd.setHours(23, 59, 59, 999);
 
       // Get transactions for this week
       const weekTransactions = await this.getUserTransactionsByDateRange(userId, weekStart, weekEnd);
-      
+
       const income = weekTransactions
         .filter(t => t.type === 'income')
         .reduce((sum, t) => sum + Number(t.amount), 0);
-      
+
       const expense = weekTransactions
         .filter(t => t.type === 'expense')
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
       const balance = income - expense;
-      
+
       // Format week label
-      const weekLabel = i === 0 ? 'Minggu Ini' : 
-                      i === 1 ? 'Minggu Lalu' : 
+      const weekLabel = i === 0 ? 'Minggu Ini' :
+                      i === 1 ? 'Minggu Lalu' :
                       `${i + 1} Minggu Lalu`;
 
       stats.push({

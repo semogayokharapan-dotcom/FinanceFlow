@@ -178,6 +178,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Chat routes
+  app.get("/api/auth/user/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User tidak ditemukan" });
+      }
+      res.json({ weyId: user.weyId, fullName: user.fullName });
+    } catch (error) {
+      res.status(500).json({ message: "Gagal mengambil data user" });
+    }
+  });
+
+  app.get("/api/chat/contacts/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const contacts = await storage.getUserContacts(userId);
+      res.json(contacts);
+    } catch (error) {
+      res.status(500).json({ message: "Gagal mengambil kontak" });
+    }
+  });
+
+  app.post("/api/chat/contacts/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { contactWeyId, contactName } = req.body;
+      
+      // Check if contact exists
+      const contactUser = await storage.getUserByWeyId(contactWeyId);
+      if (!contactUser) {
+        return res.status(404).json({ message: "Wey ID tidak ditemukan" });
+      }
+
+      const contact = await storage.addContact(userId, contactWeyId, contactName);
+      res.json(contact);
+    } catch (error) {
+      res.status(500).json({ message: "Gagal menambah kontak" });
+    }
+  });
+
+  app.get("/api/chat/messages/:userId/:contactWeyId", async (req, res) => {
+    try {
+      const { userId, contactWeyId } = req.params;
+      const messages = await storage.getChatMessages(userId, contactWeyId);
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ message: "Gagal mengambil pesan" });
+    }
+  });
+
+  app.post("/api/chat/messages/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { toWeyId, content, messageType } = req.body;
+      
+      const message = await storage.sendMessage(userId, toWeyId, content, messageType);
+      res.json(message);
+    } catch (error) {
+      res.status(500).json({ message: "Gagal mengirim pesan" });
+    }
+  });
+
+  app.post("/api/chat/messages/:userId/:contactWeyId/read", async (req, res) => {
+    try {
+      const { userId, contactWeyId } = req.params;
+      await storage.markMessagesAsRead(userId, contactWeyId);
+      res.json({ message: "Pesan ditandai sebagai dibaca" });
+    } catch (error) {
+      res.status(500).json({ message: "Gagal menandai pesan" });
+    }
+  });
+
+  // Global Chat routes
+  app.get("/api/chat/global", async (req, res) => {
+    try {
+      const messages = await storage.getGlobalChatMessages();
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ message: "Gagal mengambil pesan global" });
+    }
+  });
+
+  app.post("/api/chat/global/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { content, messageType } = req.body;
+      
+      const message = await storage.sendGlobalMessage(userId, content, messageType);
+      res.json(message);
+    } catch (error) {
+      res.status(500).json({ message: "Gagal mengirim pesan global" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

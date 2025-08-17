@@ -1,10 +1,11 @@
 
-const CACHE_NAME = 'wey-finance-v1';
+const CACHE_NAME = 'wey-finance-v2';
 const urlsToCache = [
   '/',
   '/static/js/bundle.js',
   '/static/css/main.css',
-  '/manifest.json'
+  '/manifest.json',
+  '/icons/icon-192x192.png'
 ];
 
 self.addEventListener('install', function(event) {
@@ -42,3 +43,37 @@ self.addEventListener('activate', function(event) {
     })
   );
 });
+
+// Handle notification clicks
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+  
+  // Focus the app window or open if not open
+  event.waitUntil(
+    clients.matchAll({
+      type: 'window'
+    }).then(function(clientList) {
+      for (let i = 0; i < clientList.length; i++) {
+        const client = clientList[i];
+        if (client.url === '/' && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow('/');
+      }
+    })
+  );
+});
+
+// Handle background sync for sending messages when back online
+self.addEventListener('sync', function(event) {
+  if (event.tag === 'background-sync') {
+    event.waitUntil(doBackgroundSync());
+  }
+});
+
+function doBackgroundSync() {
+  // Implementation for background sync when app comes back online
+  return Promise.resolve();
+}
