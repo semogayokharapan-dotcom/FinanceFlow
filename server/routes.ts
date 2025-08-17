@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { loginSchema, registerSchema, insertTransactionSchema, insertContactSchema, insertMessageSchema } from "@shared/schema";
+import { loginSchema, registerSchema, insertTransactionSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -40,31 +40,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ 
         message: "Login berhasil",
-        user: { id: user.id, fullName: user.fullName, monthlyTarget: user.monthlyTarget, weyId: user.weyId }
+        user: { id: user.id, fullName: user.fullName, monthlyTarget: user.monthlyTarget }
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Data tidak valid", errors: error.errors });
       }
-      res.status(500).json({ message: "Terjadi kesalahan server" });
-    }
-  });
-
-  app.get("/api/auth/user/:userId", async (req, res) => {
-    try {
-      const { userId } = req.params;
-      const user = await storage.getUserById(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User tidak ditemukan" });
-      }
-
-      res.json({ 
-        id: user.id, 
-        fullName: user.fullName, 
-        monthlyTarget: user.monthlyTarget,
-        weyId: user.weyId 
-      });
-    } catch (error) {
       res.status(500).json({ message: "Terjadi kesalahan server" });
     }
   });
@@ -194,88 +175,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching category averages:', error);
       res.status(500).json({ message: 'Gagal mengambil data rata-rata kategori' });
-    }
-  });
-
-  // Chat routes
-  app.get("/api/chat/contacts/:userId", async (req, res) => {
-    try {
-      const { userId } = req.params;
-      const contacts = await storage.getUserContacts(userId);
-      res.json(contacts);
-    } catch (error) {
-      res.status(500).json({ message: "Gagal mengambil daftar kontak" });
-    }
-  });
-
-  app.post("/api/chat/contacts/:userId", async (req, res) => {
-    try {
-      const { userId } = req.params;
-      const data = insertContactSchema.parse(req.body);
-      
-      const contact = await storage.createContact(userId, data);
-      res.json({ message: "Kontak berhasil ditambahkan", contact });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Data kontak tidak valid", errors: error.errors });
-      }
-      if (error instanceof Error) {
-        return res.status(400).json({ message: error.message });
-      }
-      res.status(500).json({ message: "Gagal menambahkan kontak" });
-    }
-  });
-
-  app.delete("/api/chat/contacts/:userId/:contactId", async (req, res) => {
-    try {
-      const { userId, contactId } = req.params;
-      await storage.deleteContact(userId, contactId);
-      res.json({ message: "Kontak berhasil dihapus" });
-    } catch (error) {
-      res.status(500).json({ message: "Gagal menghapus kontak" });
-    }
-  });
-
-  app.get("/api/chat/messages/:userId/:contactWeyId", async (req, res) => {
-    try {
-      const { userId, contactWeyId } = req.params;
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
-      
-      const messages = await storage.getChatMessages(userId, contactWeyId, limit);
-      res.json(messages.reverse()); // Reverse to show oldest first
-    } catch (error) {
-      if (error instanceof Error) {
-        return res.status(400).json({ message: error.message });
-      }
-      res.status(500).json({ message: "Gagal mengambil pesan" });
-    }
-  });
-
-  app.post("/api/chat/messages/:userId", async (req, res) => {
-    try {
-      const { userId } = req.params;
-      const data = insertMessageSchema.parse(req.body);
-      
-      const message = await storage.sendMessage(userId, data);
-      res.json({ message: "Pesan berhasil dikirim", data: message });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Data pesan tidak valid", errors: error.errors });
-      }
-      if (error instanceof Error) {
-        return res.status(400).json({ message: error.message });
-      }
-      res.status(500).json({ message: "Gagal mengirim pesan" });
-    }
-  });
-
-  app.post("/api/chat/messages/:userId/:contactWeyId/read", async (req, res) => {
-    try {
-      const { userId, contactWeyId } = req.params;
-      await storage.markMessagesAsRead(userId, contactWeyId);
-      res.json({ message: "Pesan ditandai sebagai dibaca" });
-    } catch (error) {
-      res.status(500).json({ message: "Gagal menandai pesan sebagai dibaca" });
     }
   });
 
