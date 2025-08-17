@@ -32,16 +32,20 @@ export interface IStorage {
 }
 
 export class MemoryStorage implements IStorage {
-  // Dummy implementation for db and other dependencies if MemoryStorage is meant to be used without a real DB
-  private db: any; // Replace with actual DB client type if needed
+  private db: any;
   private users: User[] = [];
   private transactions: Transaction[] = [];
 
-  constructor() {
-    // Initialize db with a mock or dummy if not using a real database
-    // For example: this.db = new MockDatabaseClient();
-    // If this class is not meant to be used without a real DB,
-    // you might need to adjust the constructor or how it's instantiated.
+  constructor(database?: any) {
+    // Import db from db.ts if not provided
+    if (database) {
+      this.db = database;
+    } else {
+      // Import db dynamically to avoid circular dependency issues
+      import('./db.js').then(({ db }) => {
+        this.db = db;
+      });
+    }
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -386,4 +390,6 @@ export class MemoryStorage implements IStorage {
   }
 }
 
-export const storage = new MemoryStorage();
+// Import db and create storage instance
+import { db } from './db.js';
+export const storage = new MemoryStorage(db);

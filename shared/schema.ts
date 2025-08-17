@@ -82,6 +82,7 @@ export const messagesRelations = relations(messages, ({ one }) => ({
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
+  weyId: true,
   createdAt: true,
 });
 
