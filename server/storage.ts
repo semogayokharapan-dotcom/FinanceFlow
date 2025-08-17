@@ -1,6 +1,5 @@
-import { users, transactions, type User, type InsertUser, type Transaction, type InsertTransaction } from "@shared/schema";
-import { db } from "./db";
-import { eq, desc, sum, and, gte, lte, sql } from "drizzle-orm";
+import { type User, type InsertUser, type Transaction, type InsertTransaction } from "@shared/schema";
+import { nanoid } from "nanoid";
 
 export interface IStorage {
   // User methods
@@ -20,77 +19,77 @@ export interface IStorage {
   getWeeklyStats(userId: string, weekCount: number): Promise<Array<{ week: string; income: number; expense: number; balance: number; startDate: Date; endDate: Date }>>;
 }
 
-export class DatabaseStorage implements IStorage {
+export class MemoryStorage implements IStorage {
+  private users: User[] = [];
+  private transactions: Transaction[] = [];
+
   async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
+    return this.users.find(user => user.id === id);
   }
 
   async getUserByPrivateKey(privateKey: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.privateKey, privateKey));
-    return user || undefined;
+    return this.users.find(user => user.privateKey === privateKey);
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(insertUser)
-      .returning();
+    const user: User = {
+      id: nanoid(),
+      ...insertUser,
+      createdAt: new Date(),
+    };
+    this.users.push(user);
     return user;
   }
 
   async getUserTransactions(userId: string, limit = 50): Promise<Transaction[]> {
-    return await db
-      .select()
-      .from(transactions)
-      .where(eq(transactions.userId, userId))
-      .orderBy(desc(transactions.date))
-      .limit(limit);
+    return this.transactions
+      .filter(transaction => transaction.userId === userId)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, limit);
   }
 
   async createTransaction(transaction: InsertTransaction & { userId: string }): Promise<Transaction> {
-    const [newTransaction] = await db
-      .insert(transactions)
-      .values(transaction)
-      .returning();
+    const newTransaction: Transaction = {
+      id: nanoid(),
+      ...transaction,
+      description: transaction.description || null,
+      createdAt: new Date(),
+    };
+    this.transactions.push(newTransaction);
     return newTransaction;
   }
 
   async deleteTransaction(id: string, userId: string): Promise<void> {
-    await db
-      .delete(transactions)
-      .where(and(eq(transactions.id, id), eq(transactions.userId, userId)));
+    this.transactions = this.transactions.filter(
+      transaction => !(transaction.id === id && transaction.userId === userId)
+    );
   }
 
   async getUserBalance(userId: string): Promise<{ income: number; expense: number; balance: number }> {
-    const result = await db
-      .select({
-        type: transactions.type,
-        total: sum(transactions.amount),
-      })
-      .from(transactions)
-      .where(eq(transactions.userId, userId))
-      .groupBy(transactions.type);
-
-    const income = Number(result.find(r => r.type === 'income')?.total || 0);
-    const expense = Number(result.find(r => r.type === 'expense')?.total || 0);
+    const userTransactions = this.transactions.filter(t => t.userId === userId);
+    
+    const income = userTransactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+    
+    const expense = userTransactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+    
     const balance = income - expense;
 
     return { income, expense, balance };
   }
 
   async getUserTransactionsByDateRange(userId: string, startDate: Date, endDate: Date): Promise<Transaction[]> {
-    return await db
-      .select()
-      .from(transactions)
-      .where(
-        and(
-          eq(transactions.userId, userId),
-          gte(transactions.date, startDate),
-          lte(transactions.date, endDate)
-        )
-      )
-      .orderBy(desc(transactions.date));
+    return this.transactions
+      .filter(t => {
+        const transactionDate = new Date(t.date);
+        return t.userId === userId && 
+               transactionDate >= startDate && 
+               transactionDate <= endDate;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
 
   async getTransactionsByDateRange(userId: string, startDate: Date, endDate: Date): Promise<Transaction[]> {
@@ -99,20 +98,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserCategoryStats(userId: string): Promise<Array<{ category: string; total: number; count: number }>> {
-    const result = await db
-      .select({
-        category: transactions.category,
-        total: sum(transactions.amount),
-        count: sql<number>`count(*)`.as('count'),
-      })
-      .from(transactions)
-      .where(and(eq(transactions.userId, userId), eq(transactions.type, 'expense')))
-      .groupBy(transactions.category);
+    const expenseTransactions = this.transactions.filter(
+      t => t.userId === userId && t.type === 'expense'
+    );
 
-    return result.map(r => ({
-      category: r.category,
-      total: Number(r.total || 0),
-      count: r.count,
+    const categoryStats: Record<string, { total: number; count: number }> = {};
+    
+    expenseTransactions.forEach(transaction => {
+      const category = transaction.category;
+      if (!categoryStats[category]) {
+        categoryStats[category] = { total: 0, count: 0 };
+      }
+      categoryStats[category].total += Number(transaction.amount);
+      categoryStats[category].count += 1;
+    });
+
+    return Object.entries(categoryStats).map(([category, stats]) => ({
+      category,
+      total: stats.total,
+      count: stats.count,
     }));
   }
 
@@ -162,4 +166,4 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+export const storage = new MemoryStorage();
